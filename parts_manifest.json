@@ -1,0 +1,20 @@
+{
+  "source": "dual_pi5_macmini_v2_1_corrected_stack_koya.scad",
+  "export_parts": [
+    "base_duct",
+    "front_fan_cassette",
+    "lid_mac_saddle",
+    "pi_cassette_left",
+    "pi_cassette_right",
+    "ugreen_straps"
+  ],
+  "inspection_only": [
+    "assembly",
+    "assembly_exploded",
+    "all_print_parts"
+  ],
+  "inspection_export_script": "scripts/export_assembly_inspection.sh",
+  "printer": "Bambu Lab P1S",
+  "target_material": "PETG",
+  "notes": "Do not print assembly view. Export each part separately."
+}

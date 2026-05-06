@@ -18,12 +18,17 @@ mkdir -p exports/validation
 parts=(
   assembly
   assembly_exploded
+  fitted_with_hardware
+  fitted_parts
   base_duct
   front_fan_cassette
   lid_mac_saddle
   pi_cassette_left
   pi_cassette_right
-  ugreen_straps
+  upper_mac_fan_bridge
+  front_noctua_grille
+  front_cassette_with_grille
+  mac_upper_cooler_preview
 )
 
 for part in "${parts[@]}"; do

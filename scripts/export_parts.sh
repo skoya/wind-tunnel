@@ -22,7 +22,7 @@ parts=(
   lid_mac_saddle
   pi_cassette_left
   pi_cassette_right
-  ugreen_straps
+  upper_mac_fan_bridge
 )
 
 for part in "${parts[@]}"; do

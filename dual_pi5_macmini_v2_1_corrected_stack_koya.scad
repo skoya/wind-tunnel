@@ -8,7 +8,22 @@
 // - Front patterned grille is clipped/contained within the cassette face: no overspill.
 // - Mac mini M4 saddle is corner-guide only, with large open centre + 140mm upward fan.
 // - Rear is open for exhaust and cable access.
-// - UGREEN straps align to screw towers in the base duct.
+// - UGREEN sits loose in a low side-keeper cradle; straps/towers removed.
+// - v2.3 tightens physical fit: real cassette slots, lower Pi pull tabs, corrected ghosts.
+// - v2.4 restores a real 140mm front fan envelope and hollow rear fan pocket.
+// - v2.5 adds printable gantry supports under the elevated Pi cassette guides.
+// - v2.6 mounts the top fan under the lid, clearing Pi cassettes and preserving Mac airflow.
+// - v2.7 removes disconnected STL islands and rebuilds grille/connectivity.
+// - v2.8 reduces material and uses a Noctua-inspired smooth radial intake grille.
+// - v2.9 imports the real Noctua 120mm high-efficiency grille STL, scaled for 140mm.
+// - v2.10 makes the Noctua grille a separate removable front part so airflow is visibly open.
+// - v2.11 rebuilds the front cassette as an open frame with integrated Noctua grille overlay.
+// - v2.12 simplifies Pi cassettes and adds fitted/full-hardware preview modes.
+// - v2.13 trims plastic while preserving PETG-safe wall/post thickness.
+// - v2.14 flips the Noctua grille so the fan-side profile faces inward toward the fan.
+// - v2.15 slims walls/front clips and adds Noctua USB fan-cable routing clips.
+// - v2.16 lowers Mac mini elevation while preserving a clear top-fan outlet plenum.
+// - v2.17 vents Pi cassette trays, removes UGREEN straps/towers, adds top Noctua grille.
 // - Airflow-optimised internals keep UGREEN front/rear/underside grilles open.
 // - Open front-to-back duct keeps airflow unobstructed; Pi guide vanes removed.
 // - Part envelopes are asserted against the Bambu Lab P1S build volume.
@@ -16,8 +31,8 @@
 //
 // EXPORT_PART:
 // "assembly", "base_duct", "front_fan_cassette", "lid_mac_saddle",
-// "pi_cassette_left", "pi_cassette_right", "ugreen_straps",
-// "assembly_exploded", "all_print_parts"
+// "pi_cassette_left", "pi_cassette_right", "front_noctua_grille",
+// "front_cassette_with_grille", "assembly_exploded", "all_print_parts"
 
 $fn = 72;
 EXPORT_PART = "assembly";
@@ -26,15 +41,18 @@ SHOW_GHOSTS = true;
 // -------------------------
 // Core dimensions
 // -------------------------
-wall = 3;
+wall = 1.8;       // ~4-5 perimeters with 0.4mm nozzle; PETG-safe but less chunky
+floor_h = 5;    // lighter base floor; rely on walls/infill for stiffness
 corner_r = 12;
 clearance = 0.6;
+join_clearance = 0.45; // loose printed clearance for removable slide/drop-in joins
 
 fan_size = 140;
 fan_thick = 25;
 fan_mount_spacing = 124.5; // verify your exact 140mm fan
 fan_screw_d = 5.2;
-strap_screw_d = 4.2;       // loose M4/class-equivalent clearance for UGREEN straps
+noctua_grill_ref = "references/noctua_120mm_high_efficiency_grill.stl";
+noctua_grill_scale = fan_size / 120;
 
 // Bambu Lab P1S nominal build volume, used for part envelope asserts.
 p1s_build_x = 256;
@@ -50,9 +68,14 @@ mac_clearance = 2;
 // Main duct hugs 140mm fan envelope
 body_w = 154;     // 140 + side structure
 body_d = 208;
-body_h = 132;     // compacted after lowering UGREEN/Pi stack; still clears 140mm front fan ghost
+body_h = 160;     // leaner height; still leaves clearance over Pi cassettes and under-lid top fan
 
 front_cassette_d = 36;
+front_tongue_w = 3.2;
+front_tongue_h_margin = 5;
+front_fan_pocket_clearance = 1.0;
+front_fan_pocket_d = fan_thick + 1.2; // rear pocket accepts a 25mm-thick 140mm fan
+front_grille_standoff = 3.0; // grille sits outside/front of fan cassette
 rear_plenum_d = 28;
 rear_y = body_d - rear_plenum_d;
 
@@ -62,24 +85,29 @@ ugreen_w = 50;
 ugreen_h = 24;
 ugreen_y = front_cassette_d + 28;
 ugreen_air_under = 14;
-ugreen_z = 14 + ugreen_air_under; // underside airflow
+ugreen_z = floor_h + ugreen_air_under; // underside airflow
 ugreen_top_clearance = 14;
-ugreen_strap_w = ugreen_w + 30;
-ugreen_strap_mount_z = ugreen_z + ugreen_h + 3; // strap sits just over measured enclosure height
 ugreen_peg_d = 4.5;
 ugreen_pad_d = 9;
 ugreen_side_keeper_h = 7;
 
 // Upper Pi bay: cassettes sit above UGREEN, not beside/inside it
-pi_stack_t = 34;       // assembled Pi + HAT thickness placeholder
+pi_stack_t = 34;       // assembled Pi + HAT stack thickness across cassette width; verify real build
 pi_card_d = 92;
-pi_card_h = 58;
+pi_body_h = 56;        // measured installed Pi stack height
+pi_card_h = pi_body_h + 2; // small visual/mechanical envelope allowance
 pi_gap = 8;
 pi_y = front_cassette_d + 26;
 pi_z = ugreen_z + ugreen_h + ugreen_top_clearance;
 pi_lower_guide_h = 10;
 pi_upper_keeper_h = 6;
 pi_guide_t = 3;
+pi_support_post_t = 4.5;
+pi_support_beam_h = 3.5;
+pi_support_front_y = pi_y - 8;
+pi_support_rear_y = pi_y + pi_card_d + 5;
+pi_pull_tab_h = 7;       // kept low so installed cassette clears a seated lid
+pi_pull_tab_overhang = 6; // rear grip lip, below lid envelope
 
 // Front grille and filter pocket.
 // Printed grille is a finger guard and filter support; use removable foam/mesh
@@ -96,41 +124,58 @@ grille_swirl_t = 4.0;
 grille_swirl_twist = 1.45;
 
 // Fan cable routing: clips are kept on side walls, outside the main airflow stream.
-fan_wire_d = 3;
-wire_clip_gap = 4.2;
-wire_clip_t = 2;
-wire_clip_h = 7;
-wire_clip_depth = 6;
-front_fan_wire_side_x = body_w - wall - 8;
-top_fan_wire_side_x = wall + 8;
+fan_wire_d = 3.5;
+wire_clip_gap = 5.2; // Noctua USB-A fan cable / small plug lead clearance
+wire_clip_t = 1.6;
+wire_clip_h = 8;
+wire_clip_depth = 7;
+front_fan_wire_side_x = body_w - wall - wire_clip_depth/2 + 0.6;
+top_fan_wire_side_x = wall + wire_clip_depth/2 - 0.6;
 fan_wire_z = 18;
 top_fan_wire_z = body_h - 10;
 usb_rear_y = body_d - 18;
 
 // Mac saddle / top fan
 top_lid_thick = 5;
-top_fan_recess = 10;
 top_fan_y = 48;
+top_fan_locator_h = 3;   // low top-side screw pads/locators only
+mac_air_gap = 10;        // modest outlet plenum above lid; top fan is under the lid
 mac_saddle_w = mac_w + mac_clearance*2;
 mac_saddle_d = mac_d + mac_clearance*2;
 mac_saddle_x = (body_w - mac_saddle_w)/2;
 mac_saddle_y = top_fan_y + 7;
-mac_deck_lift = 24; // gives ~18mm clear plenum above recessed 25mm top fan in assembly
-mac_rail_h = 8;
+mac_deck_lift = mac_air_gap; // Mac rail lift above lid outlet; fan is mounted underneath
+mac_rail_h = 6;
 mac_rail_t = 5;
-mac_riser_t = 8;
+mac_riser_t = 5;
+top_grille_standoff = 1.6; // top grille sits above lid/fan outlet and below Mac plenum
+
+// Clip-on upper cooler for Mac mini + 100x100x18mm heatsink.
+// This is a separate printable bridge so the Mac can still slide out of the saddle.
+heatsink_w = 100;
+heatsink_d = 100;
+heatsink_h = 18;
+heatsink_clearance = 3;
+upper_fan_size = 100;
+upper_fan_thick = 25;
+upper_fan_mount_spacing = 83; // common 100mm fan pattern; verify exact fan
+upper_fan_screw_d = 4.4;
+upper_cooler_leg_t = 6;
+upper_cooler_frame_t = 8;
+upper_cooler_gap = 8; // air gap above heatsink fins before fan underside
+upper_cooler_h = mac_h + heatsink_h + upper_cooler_gap + upper_fan_thick + upper_cooler_frame_t;
 
 // Individual printable envelopes must fit the P1S build volume.
 assert(body_w <= p1s_build_x && body_d <= p1s_build_y && body_h <= p1s_build_z,
        "base_duct envelope exceeds Bambu Lab P1S build volume");
-assert(body_w <= p1s_build_x && body_d <= p1s_build_y && (top_lid_thick + 13 + mac_deck_lift + mac_rail_h) <= p1s_build_z,
+assert(body_w <= p1s_build_x && body_d <= p1s_build_y && (top_lid_thick + mac_deck_lift + mac_rail_h) <= p1s_build_z,
        "lid_mac_saddle envelope exceeds Bambu Lab P1S build volume");
-assert((body_w-10) <= p1s_build_x && front_cassette_d <= p1s_build_y && (body_h-12) <= p1s_build_z,
+assert(mac_saddle_w <= p1s_build_x && mac_saddle_d <= p1s_build_y && upper_cooler_h <= p1s_build_z,
+       "upper_mac_fan_bridge envelope exceeds Bambu Lab P1S build volume");
+assert((body_w-10) <= p1s_build_x && front_cassette_d <= p1s_build_y && body_h <= p1s_build_z,
        "front_fan_cassette envelope exceeds Bambu Lab P1S build volume");
-assert(pi_stack_t <= p1s_build_x && pi_card_d <= p1s_build_y && (pi_card_h + 11) <= p1s_build_z,
+assert(pi_stack_t <= p1s_build_x && (pi_card_d + pi_pull_tab_overhang) <= p1s_build_y && (pi_card_h + pi_pull_tab_h) <= p1s_build_z,
        "pi_cassette envelope exceeds Bambu Lab P1S build volume");
-assert(ugreen_strap_w <= p1s_build_x && (ugreen_l-52+14) <= p1s_build_y && 5 <= p1s_build_z,
-       "ugreen_straps envelope exceeds Bambu Lab P1S build volume");
 
 // -------------------------
 // Helpers
@@ -208,7 +253,7 @@ module filter_media_pocket() {
 module base_duct() {
     difference() {
         union() {
-            rounded_box([body_w, body_d, 14], corner_r);
+            rounded_box([body_w, body_d, floor_h], corner_r);
 
             // solid pressure duct sides
             translate([0,0,0]) rounded_box([wall, body_d, body_h], 3);
@@ -224,7 +269,8 @@ module base_duct() {
             // UGREEN lower cradle
             ugreen_cradle();
 
-            // Pi upper cassette receiver rails
+            // Pi upper cassette receiver rails and their printable support gantry.
+            pi_receiver_supports();
             pi_receiver(body_w/2 - pi_gap/2 - pi_stack_t, pi_y);
             pi_receiver(body_w/2 + pi_gap/2, pi_y);
 
@@ -241,9 +287,12 @@ module base_duct() {
 }
 
 module front_cassette_receivers() {
-    // Join detail: front_fan_cassette tongues slide into these two vertical receivers.
-    translate([6, 0, 14]) cube([5, front_cassette_d+8, body_h-24]);
-    translate([body_w-11, 0, 14]) cube([5, front_cassette_d+8, body_h-24]);
+    // Join detail: the side walls form the outer faces; these inner rails create
+    // actual clearance channels for the cassette tongues instead of solid butt blocks.
+    slot_inner_x = wall + front_tongue_w + join_clearance;
+    rail_w = 2.2;
+    translate([slot_inner_x, 0, floor_h]) cube([rail_w, front_cassette_d+8, body_h-floor_h-10]);
+    translate([body_w-slot_inner_x-rail_w, 0, floor_h]) cube([rail_w, front_cassette_d+8, body_h-floor_h-10]);
 }
 
 module lid_support_rails() {
@@ -253,8 +302,7 @@ module lid_support_rails() {
 }
 
 module cable_clip(x, y, z, side=1) {
-    // Low-force open clip for USB fan leads. The mouth faces inward, but the
-    // clip body lives on the side wall to avoid blocking duct airflow.
+    // Side-wall-integrated wire clip. It overlaps the wall by 1mm so it is one mesh.
     translate([x, y, z])
     difference() {
         cube([wire_clip_depth, wire_clip_t, wire_clip_h], center=true);
@@ -264,15 +312,16 @@ module cable_clip(x, y, z, side=1) {
 }
 
 module fan_cable_clips() {
-    // Front fan lead: route along right wall to rear USB area.
-    for (y=[front_cassette_d+18, 104, 166, usb_rear_y]) {
+    // Front fan USB lead: capture immediately behind the cassette, then route along right wall to Pi USB area.
+    for (y=[front_cassette_d+8, front_cassette_d+28, 86, 132, 176, usb_rear_y]) {
         cable_clip(front_fan_wire_side_x, y, fan_wire_z, -1);
     }
 
-    // Top fan lead: route down the left rear/side wall, staying out of the top fan opening.
-    for (y=[top_fan_y+fan_size-18, 156, usb_rear_y]) {
+    // Top fan USB lead: route down left/rear side wall, outside top fan opening and away from Pi faces.
+    for (y=[top_fan_y+fan_size-10, 170, 142, usb_rear_y]) {
         cable_clip(top_fan_wire_side_x, y, top_fan_wire_z, 1);
     }
+
 }
 
 module ugreen_cradle() {
@@ -283,32 +332,51 @@ module ugreen_cradle() {
         union() {
             // Thin peg legs and small pads support UGREEN while leaving underside airflow open.
             for (x=[ux+7, ux+ugreen_w-7], yy=[uy+16, uy+ugreen_l/2, uy+ugreen_l-16]) {
-                translate([x, yy, 14]) cylinder(h=ugreen_air_under, d=ugreen_peg_d);
+                translate([x, yy, floor_h]) cylinder(h=ugreen_air_under, d=ugreen_peg_d);
                 translate([x, yy, ugreen_z-1.2]) cylinder(h=1.2, d=ugreen_pad_d);
             }
 
-            // Side-only keeper nubs; no front/rear cross stop over the enclosure grilles.
+            // Side-only keeper posts; extend from the base so they are printable, not floating nubs.
             for (x=[ux-6, ux+ugreen_w+6], yy=[uy+18, uy+ugreen_l-18]) {
-                translate([x, yy, ugreen_z]) cylinder(h=ugreen_side_keeper_h, d=ugreen_peg_d);
-            }
-
-            // strap towers align with separate ugreen_straps screw holes
-            for (yy=[uy+18, uy+ugreen_l-34]) {
-                translate([ux-14, yy, ugreen_z]) cube([6, 14, 30]);
-                translate([ux+ugreen_w+8, yy, ugreen_z]) cube([6, 14, 30]);
+                translate([x, yy, floor_h]) cylinder(h=ugreen_z-floor_h+ugreen_side_keeper_h, d=ugreen_peg_d);
             }
 
             // Tunnel edge rails define the lower airflow path without carrying the enclosure.
-            translate([ux-17, uy-8, 14]) cube([3, min(ugreen_l+16, body_d-uy-10), ugreen_air_under-3]);
-            translate([ux+ugreen_w+14, uy-8, 14]) cube([3, min(ugreen_l+16, body_d-uy-10), ugreen_air_under-3]);
+            translate([ux-17, uy-8, floor_h]) cube([2.4, min(ugreen_l+16, body_d-uy-10), ugreen_air_under-3]);
+            translate([ux+ugreen_w+14, uy-8, floor_h]) cube([2.4, min(ugreen_l+16, body_d-uy-10), ugreen_air_under-3]);
         }
 
-        // vertical clearance through strap towers for heat-set inserts or loose fasteners
-        for (yy=[uy+18+7, uy+ugreen_l-34+7]) {
-            translate([ux-11, yy, ugreen_z-1]) cylinder(h=34, d=strap_screw_d);
-            translate([ux+ugreen_w+11, yy, ugreen_z-1]) cylinder(h=34, d=strap_screw_d);
-        }
     }
+}
+
+
+module pi_receiver_supports() {
+    // The Pi receiver rails sit above the UGREEN bay, so they need their own
+    // printable gantry. Posts are placed outside the UGREEN footprint and the
+    // cross-beams sit above the UGREEN top clearance.
+    left_outer_x = body_w/2 - pi_gap/2 - pi_stack_t - 4;
+    right_outer_x = body_w/2 + pi_gap/2 + pi_stack_t + 1;
+    beam_w = right_outer_x - left_outer_x + pi_support_post_t;
+    beam_z = pi_z - pi_support_beam_h;
+
+    // Four side posts, outside the UGREEN width, carry the front/rear beams.
+    for (x=[left_outer_x, right_outer_x], y=[pi_support_front_y, pi_support_rear_y]) {
+        translate([x, y, floor_h]) rounded_box([pi_support_post_t, pi_support_post_t, beam_z-floor_h], 2);
+    }
+
+    // Front and rear gantry beams. These are above the UGREEN top and below the
+    // cassette rails, so the cassettes no longer float in mid-air.
+    translate([left_outer_x, pi_support_front_y, beam_z])
+        rounded_box([beam_w, pi_support_post_t, pi_support_beam_h], 2);
+    translate([left_outer_x, pi_support_rear_y, beam_z])
+        rounded_box([beam_w, pi_support_post_t, pi_support_beam_h], 2);
+
+    // Short longitudinal outer ledges stiffen the gantry without crossing the
+    // UGREEN centre airflow path.
+    translate([left_outer_x, pi_support_front_y, beam_z])
+        rounded_box([pi_support_post_t, pi_support_rear_y-pi_support_front_y+pi_support_post_t, pi_support_beam_h], 2);
+    translate([right_outer_x, pi_support_front_y, beam_z])
+        rounded_box([pi_support_post_t, pi_support_rear_y-pi_support_front_y+pi_support_post_t, pi_support_beam_h], 2);
 }
 
 module pi_receiver(x, y) {
@@ -319,41 +387,108 @@ module pi_receiver(x, y) {
     // rear stop/tab
     translate([x-2, y+pi_card_d-5, pi_z]) cube([pi_stack_t+4, 5, 8]);
 
-    // small upper anti-tip nubs only; airflow remains open around the Pi faces.
-    translate([x-2, y+18, pi_z+pi_card_h-pi_upper_keeper_h]) cube([pi_guide_t+1, 14, pi_upper_keeper_h]);
-    translate([x+pi_stack_t-2, y+18, pi_z+pi_card_h-pi_upper_keeper_h]) cube([pi_guide_t+1, 14, pi_upper_keeper_h]);
-    translate([x-2, y+pi_card_d-34, pi_z+pi_card_h-pi_upper_keeper_h]) cube([pi_guide_t+1, 14, pi_upper_keeper_h]);
-    translate([x+pi_stack_t-2, y+pi_card_d-34, pi_z+pi_card_h-pi_upper_keeper_h]) cube([pi_guide_t+1, 14, pi_upper_keeper_h]);
+    // No high anti-tip nubs here: elevated disconnected nubs become slicer floaters.
+    // Retention lives on the removable Pi cassette, which is printed as one connected piece.
 }
 
 // -------------------------
 // Front fan cassette
 // -------------------------
-module front_fan_cassette() {
+module front_noctua_grille() {
+    // Noctua grille, scaled from Bobby's 120mm STL to 140mm.
+    // Flipped through Y so the fan-side/aero-profile faces inward toward the fan pocket.
+    // Final local bounds remain approximately X 0..140, Y -2..0, Z 0..140.
+    translate([0, -2, 0])
+        mirror([0,1,0])
+            scale([noctua_grill_scale, 1, noctua_grill_scale])
+                translate([120, 0, 128])
+                    import(noctua_grill_ref, convexity=10);
+}
+
+module front_fan_cassette_body() {
+    cassette_w = body_w - 10;
+    cassette_h = body_h - 2*front_tongue_h_margin;
+    fan_pocket_x = (cassette_w - fan_size - front_fan_pocket_clearance) / 2;
+    fan_pocket_z = (cassette_h - fan_size - front_fan_pocket_clearance) / 2;
+
     difference() {
         union() {
-            rounded_box([body_w-10, front_cassette_d, body_h-12], 8);
+            // Outer cassette slab becomes a frame after the central cuts below.
+            rounded_box([cassette_w, front_cassette_d, cassette_h], 7);
 
-            // Join detail: these tongues slide into base_duct front_cassette_receivers().
-            translate([-4,4,6]) cube([5, front_cassette_d-8, body_h-24]);
-            translate([body_w-11,4,6]) cube([5, front_cassette_d-8, body_h-24]);
+            // Join detail: tongues sit in the base side-wall channels with print clearance.
+            translate([-3,0,front_tongue_h_margin]) cube([front_tongue_w+2, front_cassette_d, body_h-24]);
+            translate([body_w-11,0,front_tongue_h_margin]) cube([front_tongue_w+2, front_cassette_d, body_h-24]);
 
-            // rear pocket holds removable filter media behind the printed pattern.
-            filter_media_pocket();
-
-            // decorative filter-support pattern is embedded in face and clipped.
-            translate([(body_w-10)/2, -1.6, (body_h-12)/2])
-                rotate([90,0,0]) clipped_filter_grille_pattern();
+            // Small screw pad bosses around the fan holes; these remain after the huge intake cut.
+            for (sx=[-1,1], sz=[-1,1]) {
+                translate([cassette_w/2 + sx*fan_mount_spacing/2 - 7, 0, cassette_h/2 + sz*fan_mount_spacing/2 - 7])
+                    rounded_box([14, front_cassette_d, 14], 3);
+            }
         }
 
-        // airflow opening behind grille
-        translate([(body_w-10)/2, -4, (body_h-12)/2])
-            rotate([90,0,0]) cylinder(h=front_cassette_d+8, d=122);
+        // Full rear-loading 140mm fan pocket. This hollows the cassette behind the front frame.
+        translate([fan_pocket_x, front_cassette_d-front_fan_pocket_d, fan_pocket_z])
+            rounded_box([fan_size + front_fan_pocket_clearance, front_fan_pocket_d + 2, fan_size + front_fan_pocket_clearance], 5);
 
-        // fan mount holes
+        // Obvious through-intake. If this still looks solid in the slicer, you're loading a stale STL.
+        translate([cassette_w/2, -4, cassette_h/2])
+            rotate([90,0,0]) cylinder(h=front_cassette_d+8, d=136);
+
+        // Square relief behind the round intake avoids a hidden rear skin and makes airflow undeniable.
+        translate([cassette_w/2-62, -4, cassette_h/2-62])
+            cube([124, front_cassette_d+8, 124]);
+
+        // Fan mount holes pass through the remaining screw pads.
         for (sx=[-1,1], sz=[-1,1]) {
-            translate([(body_w-10)/2 + sx*fan_mount_spacing/2, front_cassette_d/2, (body_h-12)/2 + sz*fan_mount_spacing/2])
+            translate([cassette_w/2 + sx*fan_mount_spacing/2, front_cassette_d/2, cassette_h/2 + sz*fan_mount_spacing/2])
                 rotate([90,0,0]) cylinder(h=front_cassette_d+6, d=fan_screw_d, center=true);
+        }
+
+        // Noctua grille retainer holes around front face.
+        for (sx=[-1,1], sz=[-1,1]) {
+            translate([cassette_w/2 + sx*58, -3, cassette_h/2 + sz*58])
+                rotate([90,0,0]) cylinder(h=10, d=3.2, center=true);
+        }
+    }
+}
+
+module front_fan_cassette() {
+    front_cassette_with_grille();
+}
+
+module front_cassette_with_grille() {
+    front_fan_cassette_body();
+    // Integrated printable grille: it is part of the cassette STL, but sits proud of the open intake.
+    translate([(body_w-10)/2 - fan_size/2, -front_grille_standoff, (body_h-2*front_tongue_h_margin)/2 - fan_size/2])
+        front_noctua_grille();
+
+    // Tiny bridges tie the grille into the cassette frame so it prints as one part.
+    cassette_w = body_w - 10;
+    cassette_h = body_h - 2*front_tongue_h_margin;
+    for (a=[0:45:359]) {
+        translate([cassette_w/2 + 68*cos(a), -front_grille_standoff/2, cassette_h/2 + 68*sin(a)])
+            rotate([90,0,0]) cylinder(h=front_grille_standoff+1.2, d=3.5, center=true);
+    }
+}
+
+module flat_ring(d_outer, d_inner, h=2.0) {
+    difference() {
+        cylinder(h=h, d=d_outer);
+        translate([0,0,-1]) cylinder(h=h+2, d=d_inner);
+    }
+}
+
+module top_noctua_grille() {
+    // Lightweight top fan guard above the upward fan and below the Mac mini.
+    // Added after lid cut-outs so it remains across the outlet and ties into the lid rim.
+    union() {
+        translate([fan_size/2, fan_size/2, 0]) flat_ring(136, 128, 2.2);
+        for (x=[18:14:122]) {
+            translate([x-1.15, 4, 0]) cube([2.3, 132, 2.2]);
+        }
+        for (y=[18:14:122]) {
+            translate([4, y-1.15, 0]) cube([132, 2.3, 2.2]);
         }
     }
 }
@@ -362,58 +497,82 @@ module front_fan_cassette() {
 // Lid + Mac mini saddle
 // -------------------------
 module lid_mac_saddle() {
-    difference() {
-        union() {
-            rounded_box([body_w, body_d, top_lid_thick], corner_r);
+    union() {
+        difference() {
+            union() {
+                rounded_box([body_w, body_d, top_lid_thick], corner_r);
 
-            // underside locating tongues
-            translate([wall+1, 12, -5]) cube([8, body_d-24, 5]);
-            translate([body_w-wall-9, 12, -5]) cube([8, body_d-24, 5]);
+                // underside locating tongues
+                translate([wall+1, 12, -5]) cube([8, body_d-24, 5]);
+                translate([body_w-wall-9, 12, -5]) cube([8, body_d-24, 5]);
 
-            // top 140mm fan frame, recessed into the lid/ceiling.
-            translate([(body_w-fan_size)/2, top_fan_y, top_lid_thick-top_fan_recess])
-                top_fan_frame();
+                // Top 140mm fan mount: fan screws underneath the lid; top pads are low locators only.
+                translate([(body_w-fan_size)/2, top_fan_y, top_lid_thick])
+                    top_fan_frame();
 
-            // Mac guides sit on four corner stanchions rising from the lid/top-fan frame.
-            mac_saddle_risers();
+                // Mac guides sit on four corner stanchions rising from the lid/top-fan frame.
+                mac_saddle_risers();
 
-            // Mac guides touch only corners/edges; centre is open
-            mac_guides();
+                // Mac guides touch only corners/edges; centre is open
+                mac_guides();
 
-            // rear cable guard for Mac, not a wall blocking exhaust
-            translate([mac_saddle_x, mac_saddle_y+mac_saddle_d+7, top_lid_thick])
-                rounded_box([mac_saddle_w, 6, mac_rail_h], 3);
+                // rear cable guard for Mac, not a wall blocking exhaust
+                translate([mac_saddle_x, mac_saddle_y+mac_saddle_d+7, top_lid_thick])
+                    rounded_box([mac_saddle_w, 6, mac_rail_h], 3);
+            }
+
+            // upward fan opening: avoids blocking Mac intake
+            translate([body_w/2, top_fan_y+fan_size/2, -1])
+                cylinder(h=34, d=126);
+
+            // top fan mount holes
+            for (sx=[-1,1], sy=[-1,1]) {
+                translate([body_w/2 + sx*fan_mount_spacing/2, top_fan_y+fan_size/2 + sy*fan_mount_spacing/2, -1])
+                    cylinder(h=36, d=fan_screw_d);
+            }
+
+            // M4 Mac mini bottom power-button access cut-out, generous.
+            // Verify exact button location on your own unit.
+            translate([body_w/2-18, mac_saddle_y+mac_saddle_d-30, -1])
+                rounded_box([36, 28, 36], 9);
         }
 
-        // upward fan opening: avoids blocking Mac intake
-        translate([body_w/2, top_fan_y+fan_size/2, -1])
-            cylinder(h=34, d=126);
+        // Top guard is added after the lid cut-out so it stays between top fan and Mac mini.
+        translate([(body_w-fan_size)/2, top_fan_y, top_lid_thick + top_grille_standoff])
+            top_noctua_grille();
 
-        // top fan mount holes
-        for (sx=[-1,1], sy=[-1,1]) {
-            translate([body_w/2 + sx*fan_mount_spacing/2, top_fan_y+fan_size/2 + sy*fan_mount_spacing/2, -1])
-                cylinder(h=36, d=fan_screw_d);
+        // Short printable bridges attach the guard to the lid rim.
+        for (a=[0:45:359]) {
+            translate([body_w/2 + 68*cos(a), top_fan_y+fan_size/2 + 68*sin(a), top_lid_thick + top_grille_standoff/2])
+                cylinder(h=top_grille_standoff+1.4, d=3.4, center=true);
         }
-
-        // M4 Mac mini bottom power-button access cut-out, generous.
-        // Verify exact button location on your own unit.
-        translate([body_w/2-18, mac_saddle_y+mac_saddle_d-30, -1])
-            rounded_box([36, 28, 36], 9);
     }
 }
 
 module top_fan_frame() {
-    difference() {
-        rounded_box([fan_size, fan_size, 13], 8);
-        translate([fan_size/2, fan_size/2, -1])
-            cylinder(h=18, d=126);
+    // Open top-side locator, not a solid block. The real 140x25mm fan mounts underneath the lid.
+    pad = 22;
+    lip_t = 3;
+    lip_len = 34;
+
+    for (sx=[-1,1], sy=[-1,1]) {
+        translate([fan_size/2 + sx*fan_mount_spacing/2 - pad/2,
+                   fan_size/2 + sy*fan_mount_spacing/2 - pad/2,
+                   0])
+            rounded_box([pad, pad, top_fan_locator_h], 4);
     }
+
+    // Shallow perimeter locator lips; they locate the fan body without blocking intake.
+    translate([fan_size/2-lip_len/2, 0, 0]) cube([lip_len, lip_t, top_fan_locator_h]);
+    translate([fan_size/2-lip_len/2, fan_size-lip_t, 0]) cube([lip_len, lip_t, top_fan_locator_h]);
+    translate([0, fan_size/2-lip_len/2, 0]) cube([lip_t, lip_len, top_fan_locator_h]);
+    translate([fan_size-lip_t, fan_size/2-lip_len/2, 0]) cube([lip_t, lip_len, top_fan_locator_h]);
 }
 
 module mac_guides() {
     x = mac_saddle_x;
     y = mac_saddle_y;
-    z = top_lid_thick - top_fan_recess + 13 + mac_deck_lift;
+    z = top_lid_thick + mac_deck_lift;
 
     // corner guides only; do not form a tray that blocks underside airflow
     translate([x, y, z]) rounded_box([24, mac_rail_t, mac_rail_h], 3);
@@ -430,10 +589,10 @@ module mac_guides() {
 module mac_saddle_risers() {
     x = mac_saddle_x;
     y = mac_saddle_y;
-    z = top_lid_thick - top_fan_recess + 13;
+    z = top_lid_thick;
 
-    // Four small corner stanchions carry the Mac guide rails. They sit on the
-    // lid/fan-frame perimeter and stay outside the central underside airflow path.
+    // Four small corner stanchions carry the Mac guide rails above the lid outlet.
+    // The top fan sits below the lid, so these posts no longer conflict with the fan body.
     translate([x, y, z]) rounded_box([mac_riser_t, mac_riser_t, mac_deck_lift], 3);
     translate([x+mac_saddle_w-mac_riser_t, y, z]) rounded_box([mac_riser_t, mac_riser_t, mac_deck_lift], 3);
     translate([x, y+mac_saddle_d-mac_riser_t, z]) rounded_box([mac_riser_t, mac_riser_t, mac_deck_lift], 3);
@@ -446,40 +605,76 @@ module mac_saddle_risers() {
 module pi_cassette(label="L") {
     difference() {
         union() {
-            rounded_box([pi_stack_t, 5, pi_lower_guide_h], 2);
+            // Low vented tray: base locates the Pi stack but lets air rise through the board/HAT area.
+            cube([pi_stack_t, pi_card_d, 4]);
+            translate([0,0,0]) cube([3.2, pi_card_d, pi_lower_guide_h]);
+            translate([pi_stack_t-3.2,0,0]) cube([3.2, pi_card_d, pi_lower_guide_h]);
+            translate([0, pi_card_d-4, 0]) cube([pi_stack_t, 4, 12]);
 
-            // low side edge guides hold the stack without masking the Pi faces
-            translate([0,0,0]) cube([4, pi_card_d, pi_lower_guide_h]);
-            translate([pi_stack_t-4,0,0]) cube([4, pi_card_d, pi_lower_guide_h]);
-
-            // bottom support, kept shallow and open above
-            translate([0,0,0]) cube([pi_stack_t, pi_card_d, 5]);
-
-            // small upper retention tabs stop tipping without becoming full-height rails
-            for (yy=[18, pi_card_d-34]) {
-                translate([0, yy, pi_card_h-pi_upper_keeper_h]) cube([2, 14, pi_upper_keeper_h]);
-                translate([pi_stack_t-2, yy, pi_card_h-pi_upper_keeper_h]) cube([2, 14, pi_upper_keeper_h]);
-            }
-
-            // top pull tab
-            translate([4, pi_card_d-2, pi_card_h])
-                rounded_box([pi_stack_t-8, 10, 11], 3);
+            // Low rear pull lip/stop, connected to the tray.
+            translate([4, pi_card_d-pi_pull_tab_overhang, 11.8])
+                cube([pi_stack_t-8, pi_pull_tab_overhang+5, pi_pull_tab_h+0.2]);
         }
 
-        // lighten the shallow base while preserving edge support.
-        translate([7, 10, -1]) cube([pi_stack_t-14, pi_card_d-20, 7]);
+        // Long airflow slots through the cassette floor. Parallel-only slots keep all ribs connected.
+        for (x=[8:8:pi_stack_t-8]) {
+            translate([x-1.6, 8, -1]) rounded_box([3.2, pi_card_d-22, 7], 1.2);
+        }
     }
 }
 
-module ugreen_straps() {
-    for (yy=[0, ugreen_l-52]) {
-        translate([0, yy, 0])
-        difference() {
-            rounded_box([ugreen_strap_w, 14, 5], 4);
-            translate([10, -1, -1]) cube([ugreen_strap_w-20, 16, 7]);
-            translate([5,7,-1]) cylinder(h=8, d=strap_screw_d);
-            translate([ugreen_strap_w-5,7,-1]) cylinder(h=8, d=strap_screw_d);
+
+// -------------------------
+// Upper Mac heatsink/fan bridge
+// -------------------------
+module upper_mac_fan_bridge() {
+    // Separate drop-on bridge. It sits around the Mac/heatsink footprint and
+    // carries a 100mm fan above the 100x100x18 heatsink. Front and rear remain
+    // open, so the Mac mini can slide in/out of the saddle without being boxed in.
+    bridge_w = mac_saddle_w;
+    bridge_d = mac_saddle_d;
+    fan_x = (bridge_w - upper_fan_size)/2;
+    fan_y = (bridge_d - upper_fan_size)/2;
+    fan_z = mac_h + heatsink_h + upper_cooler_gap;
+    leg_h = fan_z + upper_cooler_frame_t;
+
+    difference() {
+        union() {
+            // Four side legs outside the Mac/heatsink footprint; no front/rear crossbar.
+            for (x=[0, bridge_w-upper_cooler_leg_t], y=[18, bridge_d-18-upper_cooler_leg_t]) {
+                translate([x,y,0]) rounded_box([upper_cooler_leg_t, upper_cooler_leg_t, leg_h], 2.5);
+            }
+
+            // Top 100mm fan carrier plate.
+            translate([fan_x-upper_cooler_frame_t/2, fan_y-upper_cooler_frame_t/2, fan_z])
+                rounded_box([upper_fan_size+upper_cooler_frame_t, upper_fan_size+upper_cooler_frame_t, upper_cooler_frame_t], 5);
+
+            // Side rails tie the legs together, but preserve the Mac slide path.
+            translate([0, 18, fan_z]) rounded_box([bridge_w, upper_cooler_leg_t, upper_cooler_frame_t], 3);
+            translate([0, bridge_d-18-upper_cooler_leg_t, fan_z]) rounded_box([bridge_w, upper_cooler_leg_t, upper_cooler_frame_t], 3);
         }
+
+        // Big airflow opening through the 100mm fan carrier.
+        translate([bridge_w/2, bridge_d/2, fan_z-1]) cylinder(h=upper_cooler_frame_t+2, d=92);
+        translate([fan_x+6, fan_y+6, fan_z-1]) cube([upper_fan_size-12, upper_fan_size-12, upper_cooler_frame_t+2]);
+
+        // Fan screw holes.
+        for (sx=[-1,1], sy=[-1,1]) {
+            translate([bridge_w/2 + sx*upper_fan_mount_spacing/2,
+                       bridge_d/2 + sy*upper_fan_mount_spacing/2,
+                       fan_z-1])
+                cylinder(h=upper_cooler_frame_t+2, d=upper_fan_screw_d);
+        }
+
+        // Clearance envelope for Mac + heatsink; keeps the bridge physically honest.
+        translate([(bridge_w-mac_w)/2, (bridge_d-mac_d)/2, -1])
+            cube([mac_w, mac_d, mac_h+1]);
+        translate([(bridge_w-heatsink_w)/2-heatsink_clearance,
+                   (bridge_d-heatsink_d)/2-heatsink_clearance,
+                   mac_h-0.2])
+            cube([heatsink_w+2*heatsink_clearance,
+                  heatsink_d+2*heatsink_clearance,
+                  heatsink_h+heatsink_clearance]);
     }
 }
 
@@ -488,8 +683,8 @@ module ugreen_straps() {
 // -------------------------
 module ghosts() {
     if (SHOW_GHOSTS) {
-        // front fan
-        translate([(body_w-fan_size)/2, 5, (body_h-fan_size)/2+10])
+        // front fan mounted inside cassette behind grille
+        translate([(body_w-fan_size)/2, front_cassette_d - fan_thick + 5, (body_h-fan_size)/2])
             rotate([90,0,0]) noctua_140_fan_ghost();
         fan_wire_ghost([
             [body_w-28, 10, body_h/2],
@@ -502,33 +697,36 @@ module ghosts() {
 
         // UGREEN below
         color([0.65,0.65,0.65,0.35])
-        translate([(body_w-ugreen_w)/2, ugreen_y, ugreen_z+8])
+        translate([(body_w-ugreen_w)/2, ugreen_y, ugreen_z])
             cube([ugreen_w, ugreen_l, ugreen_h]);
 
         // Pis above UGREEN
         color([0.1,0.6,0.2,0.28])
-        translate([body_w/2 - pi_gap/2 - pi_stack_t, pi_y+4, pi_z+6])
-            cube([pi_stack_t, 85, pi_card_h-12]);
+        translate([body_w/2 - pi_gap/2 - pi_stack_t, pi_y+4, pi_z+4])
+            cube([pi_stack_t, 85, pi_body_h]);
         color([0.1,0.6,0.2,0.28])
-        translate([body_w/2 + pi_gap/2, pi_y+4, pi_z+6])
-            cube([pi_stack_t, 85, pi_card_h-12]);
+        translate([body_w/2 + pi_gap/2, pi_y+4, pi_z+4])
+            cube([pi_stack_t, 85, pi_body_h]);
 
         // top fan
-        translate([(body_w-fan_size)/2, top_fan_y, body_h+10+top_lid_thick-top_fan_recess])
+        translate([(body_w-fan_size)/2, top_fan_y, body_h-fan_thick])
             noctua_140_fan_ghost();
         fan_wire_ghost([
-            [body_w/2, top_fan_y+fan_size-12, body_h+10+top_lid_thick-top_fan_recess+fan_thick/2],
+            [body_w/2, top_fan_y+fan_size-12, body_h-fan_thick/2],
             [top_fan_wire_side_x, top_fan_y+fan_size-18, top_fan_wire_z],
             [top_fan_wire_side_x, 156, top_fan_wire_z],
             [top_fan_wire_side_x, usb_rear_y, top_fan_wire_z],
             [body_w/2 - pi_gap/2 - 10, usb_rear_y, pi_z+36]
         ]);
 
-        // Mac mini
+        // Mac mini + 100x100x18mm heatsink
+        mac_top_z = body_h+top_lid_thick+mac_deck_lift+mac_rail_h+2;
         color([0.75,0.75,0.8,0.35])
-        translate([(body_w-mac_w)/2, mac_saddle_y+mac_clearance,
-                   body_h+10+top_lid_thick-top_fan_recess+13+mac_deck_lift+mac_rail_h+10])
+        translate([(body_w-mac_w)/2, mac_saddle_y+mac_clearance, mac_top_z])
             cube([mac_w, mac_d, mac_h]);
+        color([0.25,0.25,0.28,0.35])
+        translate([body_w/2-heatsink_w/2, mac_saddle_y+mac_clearance+mac_d/2-heatsink_d/2, mac_top_z+mac_h])
+            cube([heatsink_w, heatsink_d, heatsink_h]);
 
         // rear cable space
         color([1,0.55,0,0.18])
@@ -596,30 +794,93 @@ module wire_segment(p0, p1, d) {
     }
 }
 
-module assembly() {
+
+module upper_100mm_fan_ghost() {
+    color([0.18,0.18,0.18,0.28])
+    difference() {
+        rounded_box([upper_fan_size, upper_fan_size, upper_fan_thick], 6);
+        translate([upper_fan_size/2, upper_fan_size/2, -1])
+            cylinder(h=upper_fan_thick+2, d=88);
+        for (sx=[-1,1], sy=[-1,1]) {
+            translate([upper_fan_size/2 + sx*upper_fan_mount_spacing/2,
+                       upper_fan_size/2 + sy*upper_fan_mount_spacing/2, -1])
+                cylinder(h=upper_fan_thick+2, d=upper_fan_screw_d);
+        }
+    }
+
+    color([0.05,0.05,0.05,0.32])
+    translate([upper_fan_size/2, upper_fan_size/2, upper_fan_thick/2])
+        cylinder(h=upper_fan_thick+1, d=28, center=true);
+}
+
+module mac_upper_cooler_preview() {
+    color([0.75,0.75,0.8,0.35]) translate([(mac_saddle_w-mac_w)/2, (mac_saddle_d-mac_d)/2, 0]) cube([mac_w, mac_d, mac_h]);
+    color([0.25,0.25,0.28,0.45]) translate([(mac_saddle_w-heatsink_w)/2, (mac_saddle_d-heatsink_d)/2, mac_h]) cube([heatsink_w, heatsink_d, heatsink_h]);
+    color([0.9,0.9,0.9,0.72]) upper_mac_fan_bridge();
+    translate([(mac_saddle_w-upper_fan_size)/2, (mac_saddle_d-upper_fan_size)/2, upper_cooler_h]) upper_100mm_fan_ghost();
+}
+
+module hardware_ghosts_only() {
+    // front fan mounted inside the cassette, behind the external grille, blowing into the duct
+    translate([(body_w-fan_size)/2, front_cassette_d - fan_thick + 5, (body_h-fan_size)/2])
+        rotate([90,0,0]) noctua_140_fan_ghost();
+
+    // UGREEN below
+    color([0.65,0.65,0.65,0.35])
+    translate([(body_w-ugreen_w)/2, ugreen_y, ugreen_z])
+        cube([ugreen_w, ugreen_l, ugreen_h]);
+
+    // Pi stacks in the cassettes
+    color([0.1,0.6,0.2,0.28])
+    translate([body_w/2 - pi_gap/2 - pi_stack_t, pi_y+4, pi_z+4])
+        cube([pi_stack_t, 85, pi_body_h]);
+    color([0.1,0.6,0.2,0.28])
+    translate([body_w/2 + pi_gap/2, pi_y+4, pi_z+4])
+        cube([pi_stack_t, 85, pi_body_h]);
+
+    // top fan under lid, inside upper duct
+    translate([(body_w-fan_size)/2, top_fan_y, body_h-fan_thick])
+        noctua_140_fan_ghost();
+
+    // Mac mini seated above lid outlet, with 100x100x18mm heatsink on top.
+    mac_top_z = body_h+top_lid_thick+mac_deck_lift+mac_rail_h+2;
+    color([0.75,0.75,0.8,0.35])
+    translate([(body_w-mac_w)/2, mac_saddle_y+mac_clearance, mac_top_z])
+        cube([mac_w, mac_d, mac_h]);
+    color([0.25,0.25,0.28,0.35])
+    translate([body_w/2-heatsink_w/2, mac_saddle_y+mac_clearance+mac_d/2-heatsink_d/2, mac_top_z+mac_h])
+        cube([heatsink_w, heatsink_d, heatsink_h]);
+
+    // Optional third 100mm fan above heatsink, sitting on the separate bridge.
+    translate([mac_saddle_x + (mac_saddle_w-upper_fan_size)/2,
+               mac_saddle_y + (mac_saddle_d-upper_fan_size)/2,
+               mac_top_z + upper_cooler_h])
+        upper_100mm_fan_ghost();
+}
+
+module fitted_parts() {
     base_duct();
+    translate([0,0,body_h]) color([0.86,0.86,0.86,0.72]) lid_mac_saddle();
+    translate([5,0,6]) color([0.9,0.9,0.9,0.78]) front_fan_cassette();
+    translate([body_w/2 - pi_gap/2 - pi_stack_t, pi_y+2, pi_z]) color([0.9,0.9,0.9,0.78]) pi_cassette("L");
+    translate([body_w/2 + pi_gap/2, pi_y+2, pi_z]) color([0.9,0.9,0.9,0.78]) pi_cassette("R");
+    translate([mac_saddle_x, mac_saddle_y, body_h+top_lid_thick+mac_deck_lift+mac_rail_h+2])
+        color([0.9,0.9,0.9,0.58]) upper_mac_fan_bridge();
+}
 
-    translate([0,0,body_h+10])
-        color([0.86,0.86,0.86,0.72]) lid_mac_saddle();
+module fitted_with_hardware() {
+    fitted_parts();
+    hardware_ghosts_only();
+}
 
-    translate([5,-22,6])
-        color([0.9,0.9,0.9,0.78]) front_fan_cassette();
-
-    translate([body_w/2 - pi_gap/2 - pi_stack_t, pi_y+2, pi_z])
-        color([0.9,0.9,0.9,0.78]) pi_cassette("L");
-    translate([body_w/2 + pi_gap/2, pi_y+2, pi_z])
-        color([0.9,0.9,0.9,0.78]) pi_cassette("R");
-
-    translate([(body_w-ugreen_strap_w)/2, ugreen_y+18, ugreen_strap_mount_z])
-        color([0.9,0.9,0.9,0.78]) ugreen_straps();
-
-    ghosts();
+module assembly() {
+    fitted_with_hardware();
 }
 
 module assembly_exploded() {
     // Inspection-only view showing join directions:
     // lid drops onto side ledges, front cassette slides into front receivers,
-    // Pi cassettes slide into low-profile receiver guides, straps screw to towers.
+    // Pi cassettes slide into low-profile receiver guides; UGREEN sits loose in side keepers.
     base_duct();
 
     translate([0,0,body_h+48])
@@ -633,8 +894,6 @@ module assembly_exploded() {
     translate([body_w/2 + pi_gap/2 + 18, pi_y+2, pi_z+10])
         color([0.9,0.9,0.9,0.78]) pi_cassette("R");
 
-    translate([(body_w-ugreen_strap_w)/2, ugreen_y+18, ugreen_strap_mount_z+22])
-        color([0.9,0.9,0.9,0.78]) ugreen_straps();
 
     ghosts();
 }
@@ -645,16 +904,22 @@ module all_print_parts() {
     translate([body_w*2+40,0,0]) front_fan_cassette();
     translate([0,body_d+25,0]) pi_cassette("L");
     translate([50,body_d+25,0]) pi_cassette("R");
-    translate([105,body_d+25,0]) ugreen_straps();
+    translate([110,body_d+25,0]) upper_mac_fan_bridge();
 }
 
 if (EXPORT_PART == "assembly") assembly();
 else if (EXPORT_PART == "assembly_exploded") assembly_exploded();
+else if (EXPORT_PART == "fitted_parts") fitted_parts();
+else if (EXPORT_PART == "fitted_with_hardware") fitted_with_hardware();
 else if (EXPORT_PART == "base_duct") base_duct();
 else if (EXPORT_PART == "front_fan_cassette") front_fan_cassette();
+else if (EXPORT_PART == "front_fan_cassette_body") front_fan_cassette_body();
 else if (EXPORT_PART == "lid_mac_saddle") lid_mac_saddle();
 else if (EXPORT_PART == "pi_cassette_left") pi_cassette("L");
 else if (EXPORT_PART == "pi_cassette_right") pi_cassette("R");
-else if (EXPORT_PART == "ugreen_straps") ugreen_straps();
+else if (EXPORT_PART == "front_noctua_grille") front_noctua_grille();
+else if (EXPORT_PART == "front_cassette_with_grille") front_cassette_with_grille();
+else if (EXPORT_PART == "upper_mac_fan_bridge") upper_mac_fan_bridge();
+else if (EXPORT_PART == "mac_upper_cooler_preview") mac_upper_cooler_preview();
 else if (EXPORT_PART == "all_print_parts") all_print_parts();
 else assembly();

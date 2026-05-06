@@ -1,0 +1,16 @@
+# Local/agent scratch
+.learnings/
+__pycache__/
+*.pyc
+
+# Local preview server/runtime
+no_cache_server.py
+preview-latest
+preview/
+preview-v*/
+
+# CFD/generated solver case output; regenerate from scripts if needed
+openfoam/
+
+# Retired generated exports kept locally only
+exports/deprecated/

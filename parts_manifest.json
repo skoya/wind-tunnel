@@ -6,15 +6,23 @@
     "lid_mac_saddle",
     "pi_cassette_left",
     "pi_cassette_right",
-    "ugreen_straps"
+    "upper_mac_fan_bridge"
   ],
   "inspection_only": [
     "assembly",
     "assembly_exploded",
-    "all_print_parts"
+    "all_print_parts",
+    "front_cassette_with_grille",
+    "front_noctua_grille",
+    "fitted_parts",
+    "fitted_with_hardware",
+    "fitted_parts_preview",
+    "fitted_with_hardware_preview",
+    "front_fan_cassette_body",
+    "mac_upper_cooler_preview"
   ],
   "inspection_export_script": "scripts/export_assembly_inspection.sh",
   "printer": "Bambu Lab P1S",
   "target_material": "PETG",
-  "notes": "Do not print assembly view. Export each part separately."
+  "notes": "front_fan_cassette includes scaled Noctua grille. lid_mac_saddle includes a second top Noctua grille. UGREEN straps and strap fixtures removed; UGREEN rests in side-keeper cradle. Do not print assembly/fitted inspection views."
 }

@@ -510,19 +510,25 @@ module flat_ring(d_outer, d_inner, h=2.0) {
 }
 
 module mac_roof_cable_hook(x, y, lane_w, cable_d) {
-    // Low roof hook: cable lies flat on the rear lid/roof and threads under a visible bridge.
-    // Open fore/aft so the cable can be laid in without a sharp bend.
-    hook_len = 18;
+    // Adapter-safe open roof saddle: the cable is laid in from above/side after
+    // the chunky adapter/plug is already outside the run. No thread-through slot.
+    hook_len = 20;
     post_t = 3;
-    clearance_h = cable_d + 2.0;
+    base_t = 2.2;
+    lip_h = cable_d + 3.0;
+    lip_overhang = 4.0;
     z0 = top_lid_thick;
 
-    // Two feet tied into the lid.
-    translate([x-hook_len/2, y-lane_w/2, z0]) rounded_box([post_t, lane_w, clearance_h+post_t], 1.5);
-    translate([x+hook_len/2-post_t, y-lane_w/2, z0]) rounded_box([post_t, lane_w, clearance_h+post_t], 1.5);
+    // Low base pad bonded to the lid.
+    translate([x-hook_len/2, y-lane_w/2, z0])
+        rounded_box([hook_len, lane_w, base_t], 1.5);
 
-    // Bridge over the cable.
-    translate([x-hook_len/2, y-lane_w/2, z0+clearance_h]) rounded_box([hook_len, lane_w, post_t], 1.5);
+    // Rear retaining wall and short top lip make a sideways J-hook. Front/top
+    // remain open so USB-C/RJ45/power adapters never need to fit through.
+    translate([x-hook_len/2, y+lane_w/2-post_t, z0])
+        rounded_box([hook_len, post_t, lip_h], 1.5);
+    translate([x-hook_len/2, y+lane_w/2-post_t-lip_overhang, z0+lip_h-post_t])
+        rounded_box([hook_len, lip_overhang+post_t, post_t], 1.5);
 }
 
 module mac_external_cable_holders() {

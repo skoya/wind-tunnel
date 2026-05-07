@@ -19,8 +19,17 @@ Relative speed metrics around Pi zone:
   outer bypass speed: 0.0205
 
 Side-slice outlet split, relative flux:
-  through Pi stack slice: rear 55.6%, top 44.4%
-  through centre gap slice: rear 48.4%, top 51.6%
+  through Pi stack slice, solid UGREEN: rear 55.6%, top 44.4%
+  through Pi stack slice, vented UGREEN: rear 59.2%, top 40.8%
+  through centre gap slice, solid UGREEN: rear 48.4%, top 51.6%
+  through centre gap slice, vented UGREEN: rear 52.0%, top 48.0%
+
+UGREEN vent pass-through check:
+  Model assumption: three front-to-back vent bands through the UGREEN envelope; real adapters/internal PCB will reduce this.
+  mean relative speed inside vent bands under Pi slice: 0.1840
+  mean relative speed inside vent bands through centre gap slice: 0.1831
+  result: if the real UGREEN vents align front-to-back, fan pressure should push some air through them.
+  caution: if vents are only side/top vents rather than front/rear pass-through, the front fan will mostly flow around/under/over the UGREEN, not through it.
 
 Interpretation hints:
   High centre-gap speed compared with Pi side speed means air prefers the gap between Pis.
@@ -29,5 +38,7 @@ Interpretation hints:
 
 Generated images:
   exports/airflow/plan_slice_at_pi_height.png
-  exports/airflow/side_slice_through_pi_stack.png
-  exports/airflow/side_slice_through_centre_gap.png
+  exports/airflow/side_slice_through_pi_stack_solid_ugreen.png
+  exports/airflow/side_slice_through_pi_stack_vented_ugreen.png
+  exports/airflow/side_slice_through_centre_gap_solid_ugreen.png
+  exports/airflow/side_slice_through_centre_gap_vented_ugreen.png

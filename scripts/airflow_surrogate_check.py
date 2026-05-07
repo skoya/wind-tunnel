@@ -155,30 +155,74 @@ outer_speed = np.nanmean(np.r_[speed[y0:y1,int(wall):int(pi_xL0)].ravel(), speed
 
 # Side slice through left Pi stack: y/z
 nx2, ny2 = body_d, body_h
-solid2 = np.zeros((ny2,nx2), bool)
-rect(solid2, 0, body_d, 0, floor_h)  # floor
-rect(solid2, pi_y0, pi_y1, pi_z0, pi_z1)  # Pi obstruction in side slice
-# include UGREEN in side slice? left Pi x overlaps ugreen x partly? yes ugreen x 52..102 overlaps, so obstruction
-rect(solid2, ugreen_y0, ugreen_y1, ugreen_z0, ugreen_z1)
-inlet2 = np.zeros_like(solid2); outlet2 = np.zeros_like(solid2)
+inlet2 = np.zeros((ny2,nx2), bool); outlet2 = np.zeros((ny2,nx2), bool)
 inlet2[int(fan_z0):int(fan_z1), 0:2] = True
 outlet2[:, -2:] = True
 # top fan extraction as outlet on top between its y range
 outlet2[-2:, int(top_fan_y0):int(top_fan_y1)] = True
-p2,u2,v2,speed2,side_pi_path = plot_case('Side slice through Pi stack', [0, body_d, 0, body_h], solid2, inlet2, outlet2,
-    [('front fan',(8,body_h/2)),('UGREEN',(ugreen_y0+ugreen_l/2,ugreen_z0+ugreen_h/2)),('Pi 56mm',(pi_y0+42,pi_z0+28)),('top fan outlet',(top_fan_y0+70,body_h-8)),('rear outlet',(body_d-8,80))])
-side_pi_rear_flux = float(np.clip(np.nan_to_num(u2[:, -3]), 0, None).sum())
-side_pi_top_flux = float(np.clip(np.nan_to_num(v2[-3, int(top_fan_y0):int(top_fan_y1)]), 0, None).sum())
+
+
+def add_ugreen_solid(mask):
+    rect(mask, ugreen_y0, ugreen_y1, ugreen_z0, ugreen_z1)
+
+
+def add_ugreen_vented(mask):
+    """Conservative vent approximation for UGREEN.
+
+    The real enclosure has adapters/plugs and unknown internal blockage, so this
+    is not treated as an empty tunnel. It models front-to-back vent slots through
+    the UGREEN envelope: three horizontal air bands remain open, with solid top,
+    bottom, and ribs. If the actual vents are only on the sides/top, this will
+    overestimate pass-through from the front fan.
+    """
+    add_ugreen_solid(mask)
+    # Open three front-to-back bands inside the UGREEN height. Leave material at
+    # top/bottom and between bands so the box is still a meaningful obstruction.
+    for z0, z1 in [(ugreen_z0+4, ugreen_z0+8), (ugreen_z0+11, ugreen_z0+15), (ugreen_z0+18, ugreen_z0+21)]:
+        mask[int(round(z0)):int(round(z1)), int(round(ugreen_y0)):int(round(ugreen_y1))] = False
+
+
+def outlet_split(u, v):
+    rear = float(np.clip(np.nan_to_num(u[:, -3]), 0, None).sum())
+    top = float(np.clip(np.nan_to_num(v[-3, int(top_fan_y0):int(top_fan_y1)]), 0, None).sum())
+    total = rear + top or 1
+    return rear, top, 100*rear/total, 100*top/total
+
+# Solid UGREEN baseline through Pi stack.
+solid2 = np.zeros((ny2,nx2), bool)
+rect(solid2, 0, body_d, 0, floor_h)  # floor
+rect(solid2, pi_y0, pi_y1, pi_z0, pi_z1)  # Pi obstruction in side slice
+add_ugreen_solid(solid2)
+p2,u2,v2,speed2,side_pi_path = plot_case('Side slice through Pi stack solid UGREEN', [0, body_d, 0, body_h], solid2, inlet2, outlet2,
+    [('front fan',(8,body_h/2)),('solid UGREEN',(ugreen_y0+ugreen_l/2,ugreen_z0+ugreen_h/2)),('Pi 56mm',(pi_y0+42,pi_z0+28)),('top fan outlet',(top_fan_y0+70,body_h-8)),('rear outlet',(body_d-8,80))])
+side_pi_rear_flux, side_pi_top_flux, side_pi_rear_pct, side_pi_top_pct = outlet_split(u2, v2)
+
+# Vented UGREEN through Pi stack.
+solid2v = np.zeros((ny2,nx2), bool)
+rect(solid2v, 0, body_d, 0, floor_h)
+rect(solid2v, pi_y0, pi_y1, pi_z0, pi_z1)
+add_ugreen_vented(solid2v)
+p2v,u2v,v2v,speed2v,side_pi_vented_path = plot_case('Side slice through Pi stack vented UGREEN', [0, body_d, 0, body_h], solid2v, inlet2, outlet2,
+    [('front fan',(8,body_h/2)),('vented UGREEN model',(ugreen_y0+ugreen_l/2,ugreen_z0+ugreen_h/2)),('Pi 56mm',(pi_y0+42,pi_z0+28)),('top fan outlet',(top_fan_y0+70,body_h-8)),('rear outlet',(body_d-8,80))])
+side_pi_vent_rear_flux, side_pi_vent_top_flux, side_pi_vent_rear_pct, side_pi_vent_top_pct = outlet_split(u2v, v2v)
+ugreen_slot_speed_pi = np.nanmean(speed2v[int(ugreen_z0+4):int(ugreen_z0+21), int(ugreen_y0):int(ugreen_y1)])
 
 # Side slice through centre gap: y/z, UGREEN only, no Pi block
 solid3 = np.zeros((ny2,nx2), bool)
 rect(solid3, 0, body_d, 0, floor_h)
-rect(solid3, ugreen_y0, ugreen_y1, ugreen_z0, ugreen_z1)
+add_ugreen_solid(solid3)
 inlet3 = inlet2.copy(); outlet3 = outlet2.copy()
-p3,u3,v3,speed3,side_gap_path = plot_case('Side slice through centre gap', [0, body_d, 0, body_h], solid3, inlet3, outlet3,
-    [('front fan',(8,body_h/2)),('UGREEN',(ugreen_y0+ugreen_l/2,ugreen_z0+ugreen_h/2)),('open gap between Pis',(pi_y0+42,pi_z0+28)),('top fan outlet',(top_fan_y0+70,body_h-8)),('rear outlet',(body_d-8,80))])
-side_gap_rear_flux = float(np.clip(np.nan_to_num(u3[:, -3]), 0, None).sum())
-side_gap_top_flux = float(np.clip(np.nan_to_num(v3[-3, int(top_fan_y0):int(top_fan_y1)]), 0, None).sum())
+p3,u3,v3,speed3,side_gap_path = plot_case('Side slice through centre gap solid UGREEN', [0, body_d, 0, body_h], solid3, inlet3, outlet3,
+    [('front fan',(8,body_h/2)),('solid UGREEN',(ugreen_y0+ugreen_l/2,ugreen_z0+ugreen_h/2)),('open gap between Pis',(pi_y0+42,pi_z0+28)),('top fan outlet',(top_fan_y0+70,body_h-8)),('rear outlet',(body_d-8,80))])
+side_gap_rear_flux, side_gap_top_flux, side_gap_rear_pct, side_gap_top_pct = outlet_split(u3, v3)
+
+solid3v = np.zeros((ny2,nx2), bool)
+rect(solid3v, 0, body_d, 0, floor_h)
+add_ugreen_vented(solid3v)
+p3v,u3v,v3v,speed3v,side_gap_vented_path = plot_case('Side slice through centre gap vented UGREEN', [0, body_d, 0, body_h], solid3v, inlet3, outlet3,
+    [('front fan',(8,body_h/2)),('vented UGREEN model',(ugreen_y0+ugreen_l/2,ugreen_z0+ugreen_h/2)),('open gap between Pis',(pi_y0+42,pi_z0+28)),('top fan outlet',(top_fan_y0+70,body_h-8)),('rear outlet',(body_d-8,80))])
+side_gap_vent_rear_flux, side_gap_vent_top_flux, side_gap_vent_rear_pct, side_gap_vent_top_pct = outlet_split(u3v, v3v)
+ugreen_slot_speed_gap = np.nanmean(speed3v[int(ugreen_z0+4):int(ugreen_z0+21), int(ugreen_y0):int(ugreen_y1)])
 
 summary = OUT / 'airflow_surrogate_summary.txt'
 with summary.open('w') as f:
@@ -196,16 +240,25 @@ with summary.open('w') as f:
     f.write(f'  centre gap speed: {centre_gap_speed:.4f}\n')
     f.write(f'  outer bypass speed: {outer_speed:.4f}\n')
     f.write('\nSide-slice outlet split, relative flux:\n')
-    t = side_pi_rear_flux + side_pi_top_flux or 1
-    f.write(f'  through Pi stack slice: rear {100*side_pi_rear_flux/t:.1f}%, top {100*side_pi_top_flux/t:.1f}%\n')
-    t = side_gap_rear_flux + side_gap_top_flux or 1
-    f.write(f'  through centre gap slice: rear {100*side_gap_rear_flux/t:.1f}%, top {100*side_gap_top_flux/t:.1f}%\n')
+    f.write(f'  through Pi stack slice, solid UGREEN: rear {side_pi_rear_pct:.1f}%, top {side_pi_top_pct:.1f}%\n')
+    f.write(f'  through Pi stack slice, vented UGREEN: rear {side_pi_vent_rear_pct:.1f}%, top {side_pi_vent_top_pct:.1f}%\n')
+    f.write(f'  through centre gap slice, solid UGREEN: rear {side_gap_rear_pct:.1f}%, top {side_gap_top_pct:.1f}%\n')
+    f.write(f'  through centre gap slice, vented UGREEN: rear {side_gap_vent_rear_pct:.1f}%, top {side_gap_vent_top_pct:.1f}%\n')
+    f.write('\nUGREEN vent pass-through check:\n')
+    f.write('  Model assumption: three front-to-back vent bands through the UGREEN envelope; real adapters/internal PCB will reduce this.\n')
+    f.write(f'  mean relative speed inside vent bands under Pi slice: {ugreen_slot_speed_pi:.4f}\n')
+    f.write(f'  mean relative speed inside vent bands through centre gap slice: {ugreen_slot_speed_gap:.4f}\n')
+    if ugreen_slot_speed_gap > 0.01:
+        f.write('  result: if the real UGREEN vents align front-to-back, fan pressure should push some air through them.\n')
+    else:
+        f.write('  result: the model shows little useful pass-through; treat the UGREEN as mostly a blockage.\n')
+    f.write('  caution: if vents are only side/top vents rather than front/rear pass-through, the front fan will mostly flow around/under/over the UGREEN, not through it.\n')
     f.write('\nInterpretation hints:\n')
     f.write('  High centre-gap speed compared with Pi side speed means air prefers the gap between Pis.\n')
     f.write('  High outer-bypass speed means side leakage around the Pi stacks.\n')
     f.write('  Side slices show whether top fan/rear outlet pull flow over or around the Pi height.\n')
     f.write('\nGenerated images:\n')
-    for pth in [plan_path, side_pi_path, side_gap_path]:
+    for pth in [plan_path, side_pi_path, side_pi_vented_path, side_gap_path, side_gap_vented_path]:
         f.write(f'  {pth}\n')
 print(summary)
 print(summary.read_text())

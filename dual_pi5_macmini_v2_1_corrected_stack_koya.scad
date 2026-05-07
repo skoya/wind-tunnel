@@ -106,6 +106,9 @@ pi_support_post_t = 4.5;
 pi_support_beam_h = 3.5;
 pi_support_front_y = pi_y - 8;
 pi_support_rear_y = pi_y + pi_card_d + 5;
+pi_frame_mount_boss_h = 8;
+pi_frame_mount_boss_d = 10;
+pi_frame_mount_screw_d = 3.4; // M3 clearance through base bosses and removable Pi frame
 pi_pull_tab_h = 7;       // kept low so installed cassette clears a seated lid
 pi_pull_tab_overhang = 6; // rear grip lip, below lid envelope
 
@@ -274,17 +277,13 @@ module base_duct() {
 
             front_cassette_receivers();
 
-            lid_support_rails();
-
             // UGREEN lower cradle
             ugreen_cradle();
 
-            // Pi upper cassette receiver rails and their printable support gantry.
-            pi_receiver_supports();
-            pi_receiver(body_w/2 - pi_gap/2 - pi_stack_t, pi_y);
-            pi_receiver(body_w/2 + pi_gap/2, pi_y);
-
-            fan_cable_clips();
+            // The Pi cassette gantry is no longer printed as a cantilevered part
+            // of the base. The base only gets low vertical bosses; the removable
+            // Pi frame bolts on after printing.
+            base_pi_frame_mount_bosses();
         }
 
         // front fan opening
@@ -293,6 +292,12 @@ module base_duct() {
         // rear exhaust/cable opening
         translate([8, body_d-wall-1, 10]) cube([body_w-16, wall+4, body_h-18]);
         translate([10, body_d-wall-1, 0]) cube([body_w-20, wall+4, 52]);
+
+        // M3 vertical holes for the removable Pi frame.
+        base_pi_frame_mount_holes();
+
+        // Floor zip-tie slots replace printed cable lips/hooks in the base.
+        cable_tie_floor_slots();
     }
 }
 
@@ -305,10 +310,36 @@ module front_cassette_receivers() {
     translate([body_w-slot_inner_x-rail_w, 0, floor_h]) cube([rail_w, front_cassette_d+8, body_h-floor_h-10]);
 }
 
-module lid_support_rails() {
-    // Join detail: lid_mac_saddle underside tongues drop onto these ledges.
-    translate([wall+1, 10, body_h-6]) cube([8, body_d-20, 4]);
-    translate([body_w-wall-9, 10, body_h-6]) cube([8, body_d-20, 4]);
+module pi_frame_mount_centres() {
+    // Four bolt points around the UGREEN footprint. Children are placed at the
+    // centre of each former support post.
+    left_outer_x = body_w/2 - pi_gap/2 - pi_stack_t - 4;
+    right_outer_x = body_w/2 + pi_gap/2 + pi_stack_t + 1;
+    for (x=[left_outer_x + pi_support_post_t/2, right_outer_x + pi_support_post_t/2],
+         y=[pi_support_front_y + pi_support_post_t/2, pi_support_rear_y + pi_support_post_t/2]) {
+        translate([x, y, 0]) children();
+    }
+}
+
+module base_pi_frame_mount_bosses() {
+    pi_frame_mount_centres()
+        translate([0,0,floor_h]) cylinder(h=pi_frame_mount_boss_h, d=pi_frame_mount_boss_d);
+}
+
+module base_pi_frame_mount_holes() {
+    pi_frame_mount_centres()
+        translate([0,0,-1]) cylinder(h=floor_h+pi_frame_mount_boss_h+3, d=pi_frame_mount_screw_d);
+}
+
+module cable_tie_floor_slots() {
+    // Support-free cable management: use zip ties/Velcro through floor slots
+    // instead of printed wall hooks with lips/cantilevers.
+    slot_w = 2.4;
+    slot_l = 10;
+    for (y=[front_cassette_d+18, 88, 142, usb_rear_y]) {
+        translate([10, y-slot_l/2, -1]) cube([slot_w, slot_l, floor_h+2]);
+        translate([body_w-10-slot_w, y-slot_l/2, -1]) cube([slot_w, slot_l, floor_h+2]);
+    }
 }
 
 module side_cable_hook(y, z, side=1) {
@@ -419,6 +450,28 @@ module pi_receiver(x, y) {
 
     // No high anti-tip nubs here: elevated disconnected nubs become slicer floaters.
     // Retention lives on the removable Pi cassette, which is printed as one connected piece.
+}
+
+module pi_frame_bridge_installed() {
+    // Separate bolt-on Pi frame. This keeps the base support-light: print the
+    // base as a duct shell, then install this frame with four M3 screws.
+    difference() {
+        union() {
+            pi_receiver_supports();
+            pi_receiver(body_w/2 - pi_gap/2 - pi_stack_t, pi_y);
+            pi_receiver(body_w/2 + pi_gap/2, pi_y);
+        }
+        pi_frame_mount_centres()
+            translate([0,0,floor_h-1]) cylinder(h=pi_z + pi_lower_guide_h + 4, d=pi_frame_mount_screw_d);
+    }
+}
+
+module pi_frame_bridge() {
+    // Exported upside-down for printing: the former high cross-beams sit on the
+    // bed and the four posts grow upward, avoiding a supported gantry print.
+    // In assembly views use pi_frame_bridge_installed().
+    translate([0, body_d, pi_z + pi_lower_guide_h])
+        rotate([180,0,0]) pi_frame_bridge_installed();
 }
 
 // -------------------------
@@ -962,6 +1015,7 @@ module hardware_ghosts_only() {
 
 module fitted_parts() {
     base_duct();
+    color([0.92,0.92,0.92,0.70]) pi_frame_bridge_installed();
     translate([0,0,body_h]) color([0.86,0.86,0.86,0.72]) lid_mac_saddle();
     translate([5,0,6]) color([0.9,0.9,0.9,0.78]) front_fan_cassette();
     translate([body_w/2 - pi_gap/2 - pi_stack_t, pi_y+2, pi_z]) color([0.9,0.9,0.9,0.78]) pi_cassette("L");
@@ -983,8 +1037,8 @@ module assembly() {
 
 module assembly_exploded() {
     // Inspection-only view showing join directions:
-    // lid drops onto side ledges, front cassette slides into front receivers,
-    // Pi cassettes slide into low-profile receiver guides; UGREEN sits loose in side keepers.
+    // lid drops onto the base rim, front cassette slides into front receivers,
+    // removable Pi bridge bolts to four base bosses, then Pi cassettes slide in.
     base_duct();
 
     translate([0,0,body_h+48])
@@ -992,6 +1046,9 @@ module assembly_exploded() {
 
     translate([5,-62,6])
         color([0.9,0.9,0.9,0.78]) front_fan_cassette();
+
+    translate([0,0,28])
+        color([0.92,0.92,0.92,0.70]) pi_frame_bridge_installed();
 
     translate([body_w/2 - pi_gap/2 - pi_stack_t - 18, pi_y+2, pi_z+10])
         color([0.9,0.9,0.9,0.78]) pi_cassette("L");
@@ -1006,9 +1063,10 @@ module all_print_parts() {
     base_duct();
     translate([body_w+20,0,0]) lid_mac_saddle();
     translate([body_w*2+40,0,0]) front_fan_cassette();
-    translate([0,body_d+25,0]) pi_cassette("L");
-    translate([50,body_d+25,0]) pi_cassette("R");
-    translate([110,body_d+25,0]) upper_mac_fan_bridge();
+    translate([0,body_d+25,0]) pi_frame_bridge();
+    translate([95,body_d+25,0]) pi_cassette("L");
+    translate([145,body_d+25,0]) pi_cassette("R");
+    translate([205,body_d+25,0]) upper_mac_fan_bridge();
 }
 
 if (EXPORT_PART == "assembly") assembly();
@@ -1020,6 +1078,7 @@ else if (EXPORT_PART == "base_duct") base_duct();
 else if (EXPORT_PART == "front_fan_cassette") front_fan_cassette();
 else if (EXPORT_PART == "front_fan_cassette_body") front_fan_cassette_body();
 else if (EXPORT_PART == "lid_mac_saddle") lid_mac_saddle();
+else if (EXPORT_PART == "pi_frame_bridge") pi_frame_bridge();
 else if (EXPORT_PART == "pi_cassette_left") pi_cassette("L");
 else if (EXPORT_PART == "pi_cassette_right") pi_cassette("R");
 else if (EXPORT_PART == "front_noctua_grille") front_noctua_grille();

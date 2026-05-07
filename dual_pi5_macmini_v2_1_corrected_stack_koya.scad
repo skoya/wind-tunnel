@@ -96,7 +96,7 @@ pi_stack_t = 34;       // assembled Pi + HAT stack thickness across cassette wid
 pi_card_d = 92;
 pi_body_h = 56;        // measured installed Pi stack height
 pi_card_h = pi_body_h + 2; // small visual/mechanical envelope allowance
-pi_gap = 8;
+pi_gap = 20; // widened centre gap between Pi cassettes for airflow/cable access
 pi_y = front_cassette_d + 26;
 pi_z = ugreen_z + ugreen_h + ugreen_top_clearance;
 pi_lower_guide_h = 10;
@@ -125,15 +125,20 @@ grille_swirl_twist = 1.45;
 
 // Fan cable routing: clips are kept on side walls, outside the main airflow stream.
 fan_wire_d = 3.5;
-wire_clip_gap = 5.2; // Noctua USB-A fan cable / small plug lead clearance
-wire_clip_t = 1.6;
-wire_clip_h = 8;
-wire_clip_depth = 7;
+mac_power_cable_d = 7.5; // approximate Mac mini mains lead diameter; holder is intentionally generous
+mac_usbc_cable_d = 4.8;  // typical USB-C cable diameter
+mac_rj45_cable_d = 6.5;  // ethernet cable, not the RJ45 plug body
+wire_clip_gap = 6.8; // generous snap-in throat for ~3.5mm fan lead after PETG shrink/stringing
+wire_clip_t = 2.2;
+wire_clip_h = 11;
+wire_clip_depth = 9.5;
 front_fan_wire_side_x = body_w - wall - wire_clip_depth/2 + 0.6;
 top_fan_wire_side_x = wall + wire_clip_depth/2 - 0.6;
 fan_wire_z = 18;
 top_fan_wire_z = body_h - 10;
 usb_rear_y = body_d - 18;
+top_fan_pi_usb_z = pi_z + 36; // approximate Pi USB cable entry height at rear of cassette
+top_fan_pi_usb_x = body_w/2 - pi_gap/2 - 10; // default route to left Pi; mirror manually if needed
 
 // Mac saddle / top fan
 top_lid_thick = 5;
@@ -148,7 +153,7 @@ mac_deck_lift = mac_air_gap; // Mac rail lift above lid outlet; fan is mounted u
 mac_rail_h = 6;
 mac_rail_t = 5;
 mac_riser_t = 5;
-top_grille_standoff = 1.6; // top grille sits above lid/fan outlet and below Mac plenum
+top_grille_standoff = 0; // top grille removed: Mac is supported by rails, leaving fan outlet open
 
 // Clip-on upper cooler for Mac mini + 100x100x18mm heatsink.
 // This is a separate printable bridge so the Mac can still slide out of the saddle.
@@ -160,17 +165,22 @@ upper_fan_size = 100;
 upper_fan_thick = 25;
 upper_fan_mount_spacing = 83; // common 100mm fan pattern; verify exact fan
 upper_fan_screw_d = 4.4;
-upper_cooler_leg_t = 6;
-upper_cooler_frame_t = 8;
-upper_cooler_gap = 8; // air gap above heatsink fins before fan underside
-upper_cooler_h = mac_h + heatsink_h + upper_cooler_gap + upper_fan_thick + upper_cooler_frame_t;
+upper_bridge_w = upper_fan_size + 10; // low clip footprint around 100mm fan, not around the Mac
+upper_bridge_d = upper_fan_size + 10;
+upper_cooler_leg_t = 5.0;
+upper_cooler_frame_t = 5;
+upper_bridge_corner_r = 8;
+upper_bridge_arch_h = 8; // retained for compatibility; no tall side arches now
+upper_cooler_gap = 1.5; // tiny anti-rattle clearance: fan frame effectively rests on heatsink
+upper_fan_lip_h = 4; // low retaining lip over fan-frame corners
+upper_cooler_h = mac_h + heatsink_h + upper_cooler_gap + upper_fan_thick + upper_fan_lip_h;
 
 // Individual printable envelopes must fit the P1S build volume.
 assert(body_w <= p1s_build_x && body_d <= p1s_build_y && body_h <= p1s_build_z,
        "base_duct envelope exceeds Bambu Lab P1S build volume");
 assert(body_w <= p1s_build_x && body_d <= p1s_build_y && (top_lid_thick + mac_deck_lift + mac_rail_h) <= p1s_build_z,
        "lid_mac_saddle envelope exceeds Bambu Lab P1S build volume");
-assert(mac_saddle_w <= p1s_build_x && mac_saddle_d <= p1s_build_y && upper_cooler_h <= p1s_build_z,
+assert(upper_bridge_w <= p1s_build_x && upper_bridge_d <= p1s_build_y && upper_cooler_h <= p1s_build_z,
        "upper_mac_fan_bridge envelope exceeds Bambu Lab P1S build volume");
 assert((body_w-10) <= p1s_build_x && front_cassette_d <= p1s_build_y && body_h <= p1s_build_z,
        "front_fan_cassette envelope exceeds Bambu Lab P1S build volume");
@@ -301,28 +311,48 @@ module lid_support_rails() {
     translate([body_w-wall-9, 10, body_h-6]) cube([8, body_d-20, 4]);
 }
 
-module cable_clip(x, y, z, side=1) {
-    // Side-wall-integrated wire clip. It overlaps the wall by 1mm so it is one mesh.
-    translate([x, y, z])
-    difference() {
-        cube([wire_clip_depth, wire_clip_t, wire_clip_h], center=true);
-        translate([side*wire_clip_depth/4, 0, 0])
-            cube([wire_clip_depth/2+0.2, wire_clip_t+0.4, wire_clip_gap], center=true);
-    }
+module side_cable_hook(y, z, side=1) {
+    // Open J-hook for fan leads. The wire is threaded/laid under the lip;
+    // no mystery snap-slot. side=1 means left wall, side=-1 means right wall.
+    hook_len = 12;
+    hook_depth = 10;
+    hook_t = 2.4;
+    hook_lip_h = 5;
+    x0 = side == 1 ? 0 : body_w-hook_t;
+    inward = side == 1 ? 1 : -1;
+
+    // Wall pad, shelf, and upturned lip. All overlap the wall so this is one mesh.
+    translate([x0, y-hook_len/2, z-hook_lip_h/2]) cube([hook_t, hook_len, hook_lip_h+4]);
+    translate([side == 1 ? 0 : body_w-hook_depth, y-hook_len/2, z-hook_t/2]) cube([hook_depth, hook_len, hook_t]);
+    translate([side == 1 ? hook_depth-hook_t : body_w-hook_depth, y-hook_len/2, z-hook_t/2]) cube([hook_t, hook_len, hook_lip_h]);
+}
+
+module rear_vertical_cable_hook(z) {
+    // Rear-left open hook for the top-fan lead as it drops down toward a Pi.
+    hook_w = 10;
+    hook_t = 2.4;
+    hook_h = 12;
+    translate([0, usb_rear_y-hook_t/2, z-hook_h/2]) cube([hook_w, hook_t, hook_h]);
+    translate([hook_w-hook_t, usb_rear_y-hook_t/2, z-hook_h/2]) cube([hook_t, hook_t+8, hook_t]);
 }
 
 module fan_cable_clips() {
-    // Front fan USB lead: capture immediately behind the cassette, then route along right wall to Pi USB area.
-    for (y=[front_cassette_d+8, front_cassette_d+28, 86, 132, 176, usb_rear_y]) {
-        cable_clip(front_fan_wire_side_x, y, fan_wire_z, -1);
+    // Front fan USB lead: open hooks along the right wall toward the Pi USB area.
+    for (y=[front_cassette_d+10, front_cassette_d+38, 88, 132, 176, usb_rear_y]) {
+        side_cable_hook(y, fan_wire_z, -1);
     }
 
-    // Top fan USB lead: route down left/rear side wall, outside top fan opening and away from Pi faces.
-    for (y=[top_fan_y+fan_size-10, 170, 142, usb_rear_y]) {
-        cable_clip(top_fan_wire_side_x, y, top_fan_wire_z, 1);
+    // Top fan USB lead: open hooks along the left wall from the under-lid fan to the rear.
+    for (y=[top_fan_y+fan_size-10, 168, 142, usb_rear_y]) {
+        side_cable_hook(y, top_fan_wire_z, 1);
     }
 
+    // Rear-left descending hooks toward the left Pi USB height.
+    for (z=[top_fan_wire_z-18, top_fan_wire_z-42, top_fan_pi_usb_z+16, top_fan_pi_usb_z]) {
+        rear_vertical_cable_hook(z);
+    }
 }
+
 
 module ugreen_cradle() {
     ux = (body_w - ugreen_w) / 2;
@@ -479,17 +509,36 @@ module flat_ring(d_outer, d_inner, h=2.0) {
     }
 }
 
-module top_noctua_grille() {
-    // Lightweight top fan guard above the upward fan and below the Mac mini.
-    // Added after lid cut-outs so it remains across the outlet and ties into the lid rim.
-    union() {
-        translate([fan_size/2, fan_size/2, 0]) flat_ring(136, 128, 2.2);
-        for (x=[18:14:122]) {
-            translate([x-1.15, 4, 0]) cube([2.3, 132, 2.2]);
-        }
-        for (y=[18:14:122]) {
-            translate([4, y-1.15, 0]) cube([132, 2.3, 2.2]);
-        }
+module mac_roof_cable_hook(x, y, lane_w, cable_d) {
+    // Low roof hook: cable lies flat on the rear lid/roof and threads under a visible bridge.
+    // Open fore/aft so the cable can be laid in without a sharp bend.
+    hook_len = 18;
+    post_t = 3;
+    clearance_h = cable_d + 2.0;
+    z0 = top_lid_thick;
+
+    // Two feet tied into the lid.
+    translate([x-hook_len/2, y-lane_w/2, z0]) rounded_box([post_t, lane_w, clearance_h+post_t], 1.5);
+    translate([x+hook_len/2-post_t, y-lane_w/2, z0]) rounded_box([post_t, lane_w, clearance_h+post_t], 1.5);
+
+    // Bridge over the cable.
+    translate([x-hook_len/2, y-lane_w/2, z0+clearance_h]) rounded_box([hook_len, lane_w, post_t], 1.5);
+}
+
+module mac_external_cable_holders() {
+    // Mac cables exit the rear face. Let them run flat across the rear roof.
+    // No right-side drop hook: the free cables can bend naturally after the roof run.
+    mac_rear_y = mac_saddle_y + mac_clearance + mac_d;
+    power_lane_y = mac_rear_y + 7;
+    rj45_lane_y = mac_rear_y + 17;
+    usbc_lane_y = mac_rear_y + 27;
+
+    // Rear roof run from the Mac rear area toward the right side.
+    // Three lanes: power, RJ45/network, USB-C.
+    for (x=[body_w/2+12, body_w/2+38, body_w-18]) {
+        mac_roof_cable_hook(x, power_lane_y, 11, mac_power_cable_d);
+        mac_roof_cable_hook(x, rj45_lane_y, 10, mac_rj45_cable_d);
+        mac_roof_cable_hook(x, usbc_lane_y, 9, mac_usbc_cable_d);
     }
 }
 
@@ -519,6 +568,9 @@ module lid_mac_saddle() {
                 // rear cable guard for Mac, not a wall blocking exhaust
                 translate([mac_saddle_x, mac_saddle_y+mac_saddle_d+7, top_lid_thick])
                     rounded_box([mac_saddle_w, 6, mac_rail_h], 3);
+
+                // External holders route Mac power + USB-C toward the back-right outside edge.
+                mac_external_cable_holders();
             }
 
             // upward fan opening: avoids blocking Mac intake
@@ -537,15 +589,8 @@ module lid_mac_saddle() {
                 rounded_box([36, 28, 36], 9);
         }
 
-        // Top guard is added after the lid cut-out so it stays between top fan and Mac mini.
-        translate([(body_w-fan_size)/2, top_fan_y, top_lid_thick + top_grille_standoff])
-            top_noctua_grille();
-
-        // Short printable bridges attach the guard to the lid rim.
-        for (a=[0:45:359]) {
-            translate([body_w/2 + 68*cos(a), top_fan_y+fan_size/2 + 68*sin(a), top_lid_thick + top_grille_standoff/2])
-                cylinder(h=top_grille_standoff+1.4, d=3.4, center=true);
-        }
+        // No printed grille above the top fan: the Mac is supported by rails,
+        // and the open centre gives the cleanest upward airflow.
     }
 }
 
@@ -603,23 +648,29 @@ module mac_saddle_risers() {
 // Pi cassettes
 // -------------------------
 module pi_cassette(label="L") {
-    difference() {
-        union() {
-            // Low vented tray: base locates the Pi stack but lets air rise through the board/HAT area.
-            cube([pi_stack_t, pi_card_d, 4]);
-            translate([0,0,0]) cube([3.2, pi_card_d, pi_lower_guide_h]);
-            translate([pi_stack_t-3.2,0,0]) cube([3.2, pi_card_d, pi_lower_guide_h]);
-            translate([0, pi_card_d-4, 0]) cube([pi_stack_t, 4, 12]);
+    // Open-frame cassette: side rails and a few ribs locate the Pi stack while
+    // leaving most of the underside open to airflow and using much less plastic.
+    rail_w = 3.2;
+    rib_w = 2.4;
+    rear_stop_d = 4;
 
-            // Low rear pull lip/stop, connected to the tray.
-            translate([4, pi_card_d-pi_pull_tab_overhang, 11.8])
-                cube([pi_stack_t-8, pi_pull_tab_overhang+5, pi_pull_tab_h+0.2]);
+    union() {
+        // Side guide rails.
+        translate([0,0,0]) cube([rail_w, pi_card_d, pi_lower_guide_h]);
+        translate([pi_stack_t-rail_w,0,0]) cube([rail_w, pi_card_d, pi_lower_guide_h]);
+
+        // Thin front/rear cross members keep the cassette square without becoming a tray.
+        translate([0,0,0]) cube([pi_stack_t, rib_w, 4]);
+        translate([0,pi_card_d-rear_stop_d,0]) cube([pi_stack_t, rear_stop_d, 12]);
+
+        // Three narrow underside ribs instead of a solid floor.
+        for (y=[22, 46, 70]) {
+            translate([rail_w, y-rib_w/2, 0]) cube([pi_stack_t-2*rail_w, rib_w, 4]);
         }
 
-        // Long airflow slots through the cassette floor. Parallel-only slots keep all ribs connected.
-        for (x=[8:8:pi_stack_t-8]) {
-            translate([x-1.6, 8, -1]) rounded_box([3.2, pi_card_d-22, 7], 1.2);
-        }
+        // Low rear pull lip/stop, connected to the rear cross member.
+        translate([4, pi_card_d-pi_pull_tab_overhang, 11.8])
+            cube([pi_stack_t-8, pi_pull_tab_overhang+5, pi_pull_tab_h+0.2]);
     }
 }
 
@@ -628,53 +679,41 @@ module pi_cassette(label="L") {
 // Upper Mac heatsink/fan bridge
 // -------------------------
 module upper_mac_fan_bridge() {
-    // Separate drop-on bridge. It sits around the Mac/heatsink footprint and
-    // carries a 100mm fan above the 100x100x18 heatsink. Front and rear remain
-    // open, so the Mac mini can slide in/out of the saddle without being boxed in.
-    bridge_w = mac_saddle_w;
-    bridge_d = mac_saddle_d;
+    // Low retaining clip for the 100mm fan sitting directly on the heatsink.
+    // No tall Mac-surrounding legs: the Mac is already carried by the saddle,
+    // and the fan is already carried by the heatsink.
+    bridge_w = upper_bridge_w;
+    bridge_d = upper_bridge_d;
     fan_x = (bridge_w - upper_fan_size)/2;
     fan_y = (bridge_d - upper_fan_size)/2;
-    fan_z = mac_h + heatsink_h + upper_cooler_gap;
-    leg_h = fan_z + upper_cooler_frame_t;
+    base_h = 4;
+    clip_h = upper_fan_lip_h + base_h;
+    lip_overlap = 4;
 
     difference() {
         union() {
-            // Four side legs outside the Mac/heatsink footprint; no front/rear crossbar.
-            for (x=[0, bridge_w-upper_cooler_leg_t], y=[18, bridge_d-18-upper_cooler_leg_t]) {
-                translate([x,y,0]) rounded_box([upper_cooler_leg_t, upper_cooler_leg_t, leg_h], 2.5);
+            // One connected perimeter ring around the 100mm fan frame.
+            difference() {
+                rounded_box([bridge_w, bridge_d, base_h], upper_bridge_corner_r);
+                translate([fan_x, fan_y, -1]) rounded_box([upper_fan_size, upper_fan_size, base_h+2], 3);
             }
 
-            // Top 100mm fan carrier plate.
-            translate([fan_x-upper_cooler_frame_t/2, fan_y-upper_cooler_frame_t/2, fan_z])
-                rounded_box([upper_fan_size+upper_cooler_frame_t, upper_fan_size+upper_cooler_frame_t, upper_cooler_frame_t], 5);
-
-            // Side rails tie the legs together, but preserve the Mac slide path.
-            translate([0, 18, fan_z]) rounded_box([bridge_w, upper_cooler_leg_t, upper_cooler_frame_t], 3);
-            translate([0, bridge_d-18-upper_cooler_leg_t, fan_z]) rounded_box([bridge_w, upper_cooler_leg_t, upper_cooler_frame_t], 3);
+            // Four tiny over-lips at the fan-frame corners.
+            for (sx=[0,1], sy=[0,1]) {
+                translate([fan_x + sx*(upper_fan_size-lip_overlap),
+                           fan_y + sy*(upper_fan_size-lip_overlap),
+                           base_h])
+                    rounded_box([lip_overlap, lip_overlap, upper_fan_lip_h], 1.2);
+            }
         }
 
-        // Big airflow opening through the 100mm fan carrier.
-        translate([bridge_w/2, bridge_d/2, fan_z-1]) cylinder(h=upper_cooler_frame_t+2, d=92);
-        translate([fan_x+6, fan_y+6, fan_z-1]) cube([upper_fan_size-12, upper_fan_size-12, upper_cooler_frame_t+2]);
-
-        // Fan screw holes.
+        // Screw/zip-tie clearance through the ring at the fan mounting pattern.
         for (sx=[-1,1], sy=[-1,1]) {
             translate([bridge_w/2 + sx*upper_fan_mount_spacing/2,
                        bridge_d/2 + sy*upper_fan_mount_spacing/2,
-                       fan_z-1])
-                cylinder(h=upper_cooler_frame_t+2, d=upper_fan_screw_d);
+                       -1])
+                cylinder(h=clip_h+2, d=upper_fan_screw_d);
         }
-
-        // Clearance envelope for Mac + heatsink; keeps the bridge physically honest.
-        translate([(bridge_w-mac_w)/2, (bridge_d-mac_d)/2, -1])
-            cube([mac_w, mac_d, mac_h+1]);
-        translate([(bridge_w-heatsink_w)/2-heatsink_clearance,
-                   (bridge_d-heatsink_d)/2-heatsink_clearance,
-                   mac_h-0.2])
-            cube([heatsink_w+2*heatsink_clearance,
-                  heatsink_d+2*heatsink_clearance,
-                  heatsink_h+heatsink_clearance]);
     }
 }
 
@@ -716,7 +755,9 @@ module ghosts() {
             [top_fan_wire_side_x, top_fan_y+fan_size-18, top_fan_wire_z],
             [top_fan_wire_side_x, 156, top_fan_wire_z],
             [top_fan_wire_side_x, usb_rear_y, top_fan_wire_z],
-            [body_w/2 - pi_gap/2 - 10, usb_rear_y, pi_z+36]
+            [top_fan_wire_side_x, usb_rear_y, top_fan_pi_usb_z+18],
+            [top_fan_pi_usb_x-16, usb_rear_y, top_fan_pi_usb_z],
+            [top_fan_pi_usb_x, usb_rear_y, top_fan_pi_usb_z]
         ]);
 
         // Mac mini + 100x100x18mm heatsink
@@ -735,11 +776,63 @@ module ghosts() {
     }
 }
 
-module fan_wire_ghost(points) {
-    color([0.02,0.02,0.02,0.75])
+module cable_ghost(points, d, rgba=[0.02,0.02,0.02,0.75]) {
+    color(rgba)
     for (i=[0:len(points)-2]) {
-        wire_segment(points[i], points[i+1], fan_wire_d);
+        wire_segment(points[i], points[i+1], d);
     }
+}
+
+module fan_wire_ghost(points) {
+    cable_ghost(points, fan_wire_d, [0.02,0.02,0.02,0.75]);
+}
+
+module cable_route_ghosts_only() {
+    // Fan cable routes inside the duct.
+    fan_wire_ghost([
+        [body_w-28, 10, body_h/2],
+        [front_fan_wire_side_x, front_cassette_d+18, fan_wire_z],
+        [front_fan_wire_side_x, 104, fan_wire_z],
+        [front_fan_wire_side_x, 166, fan_wire_z],
+        [front_fan_wire_side_x, usb_rear_y, fan_wire_z],
+        [body_w/2 + pi_gap/2 + 10, usb_rear_y, pi_z+24]
+    ]);
+
+    fan_wire_ghost([
+        [body_w/2, top_fan_y+fan_size-12, body_h-fan_thick/2],
+        [top_fan_wire_side_x, top_fan_y+fan_size-18, top_fan_wire_z],
+        [top_fan_wire_side_x, 156, top_fan_wire_z],
+        [top_fan_wire_side_x, usb_rear_y, top_fan_wire_z],
+        [top_fan_wire_side_x, usb_rear_y, top_fan_pi_usb_z+18],
+        [top_fan_pi_usb_x-16, usb_rear_y, top_fan_pi_usb_z],
+        [top_fan_pi_usb_x, usb_rear_y, top_fan_pi_usb_z]
+    ]);
+
+    // Mac rear cables: leave rear ports, flatten onto rear roof lanes, then run right.
+    mac_top_z = body_h+top_lid_thick+mac_deck_lift+mac_rail_h+2;
+    mac_rear_y = mac_saddle_y + mac_clearance + mac_d;
+    roof_z = body_h + top_lid_thick + 5;
+    cable_ghost([
+        [body_w/2-34, mac_rear_y, mac_top_z+16],
+        [body_w/2-24, mac_rear_y+7, roof_z+2],
+        [body_w/2+12, mac_rear_y+7, roof_z+2],
+        [body_w/2+38, mac_rear_y+7, roof_z+2],
+        [body_w-8, mac_rear_y+7, roof_z+2]
+    ], mac_power_cable_d, [0.05,0.05,0.05,0.8]);
+    cable_ghost([
+        [body_w/2, mac_rear_y, mac_top_z+12],
+        [body_w/2+4, mac_rear_y+17, roof_z+1.5],
+        [body_w/2+12, mac_rear_y+17, roof_z+1.5],
+        [body_w/2+38, mac_rear_y+17, roof_z+1.5],
+        [body_w-8, mac_rear_y+17, roof_z+1.5]
+    ], mac_rj45_cable_d, [0.0,0.18,0.8,0.75]);
+    cable_ghost([
+        [body_w/2+34, mac_rear_y, mac_top_z+13],
+        [body_w/2+28, mac_rear_y+27, roof_z+1],
+        [body_w/2+12, mac_rear_y+27, roof_z+1],
+        [body_w/2+38, mac_rear_y+27, roof_z+1],
+        [body_w-8, mac_rear_y+27, roof_z+1]
+    ], mac_usbc_cable_d, [0.55,0.55,0.55,0.8]);
 }
 
 module noctua_140_fan_ghost() {
@@ -814,10 +907,11 @@ module upper_100mm_fan_ghost() {
 }
 
 module mac_upper_cooler_preview() {
-    color([0.75,0.75,0.8,0.35]) translate([(mac_saddle_w-mac_w)/2, (mac_saddle_d-mac_d)/2, 0]) cube([mac_w, mac_d, mac_h]);
-    color([0.25,0.25,0.28,0.45]) translate([(mac_saddle_w-heatsink_w)/2, (mac_saddle_d-heatsink_d)/2, mac_h]) cube([heatsink_w, heatsink_d, heatsink_h]);
-    color([0.9,0.9,0.9,0.72]) upper_mac_fan_bridge();
-    translate([(mac_saddle_w-upper_fan_size)/2, (mac_saddle_d-upper_fan_size)/2, upper_cooler_h]) upper_100mm_fan_ghost();
+    color([0.75,0.75,0.8,0.35]) translate([(upper_bridge_w-mac_w)/2, (upper_bridge_d-mac_d)/2, 0]) cube([mac_w, mac_d, mac_h]);
+    color([0.25,0.25,0.28,0.45]) translate([(upper_bridge_w-heatsink_w)/2, (upper_bridge_d-heatsink_d)/2, mac_h]) cube([heatsink_w, heatsink_d, heatsink_h]);
+    // Clip is shown at fan level, around the fan frame, not as a tall stand.
+    translate([(upper_bridge_w-upper_fan_size)/2, (upper_bridge_d-upper_fan_size)/2, mac_h + heatsink_h + upper_cooler_gap]) upper_100mm_fan_ghost();
+    translate([0, 0, mac_h + heatsink_h + upper_cooler_gap]) color([0.9,0.9,0.9,0.72]) upper_mac_fan_bridge();
 }
 
 module hardware_ghosts_only() {
@@ -851,11 +945,13 @@ module hardware_ghosts_only() {
     translate([body_w/2-heatsink_w/2, mac_saddle_y+mac_clearance+mac_d/2-heatsink_d/2, mac_top_z+mac_h])
         cube([heatsink_w, heatsink_d, heatsink_h]);
 
-    // Optional third 100mm fan above heatsink, sitting on the separate bridge.
-    translate([mac_saddle_x + (mac_saddle_w-upper_fan_size)/2,
-               mac_saddle_y + (mac_saddle_d-upper_fan_size)/2,
-               mac_top_z + upper_cooler_h])
+    // Optional third 100mm fan: frame rests directly on/just above the heatsink.
+    translate([body_w/2 - upper_fan_size/2,
+               mac_saddle_y+mac_clearance+mac_d/2 - upper_fan_size/2,
+               mac_top_z + mac_h + heatsink_h + upper_cooler_gap])
         upper_100mm_fan_ghost();
+
+    cable_route_ghosts_only();
 }
 
 module fitted_parts() {
@@ -864,7 +960,9 @@ module fitted_parts() {
     translate([5,0,6]) color([0.9,0.9,0.9,0.78]) front_fan_cassette();
     translate([body_w/2 - pi_gap/2 - pi_stack_t, pi_y+2, pi_z]) color([0.9,0.9,0.9,0.78]) pi_cassette("L");
     translate([body_w/2 + pi_gap/2, pi_y+2, pi_z]) color([0.9,0.9,0.9,0.78]) pi_cassette("R");
-    translate([mac_saddle_x, mac_saddle_y, body_h+top_lid_thick+mac_deck_lift+mac_rail_h+2])
+    translate([body_w/2-upper_bridge_w/2,
+               mac_saddle_y+mac_clearance+mac_d/2-upper_bridge_d/2,
+               body_h+top_lid_thick+mac_deck_lift+mac_rail_h+2 + mac_h + heatsink_h + upper_cooler_gap])
         color([0.9,0.9,0.9,0.58]) upper_mac_fan_bridge();
 }
 
@@ -911,6 +1009,7 @@ if (EXPORT_PART == "assembly") assembly();
 else if (EXPORT_PART == "assembly_exploded") assembly_exploded();
 else if (EXPORT_PART == "fitted_parts") fitted_parts();
 else if (EXPORT_PART == "fitted_with_hardware") fitted_with_hardware();
+else if (EXPORT_PART == "cable_route_ghosts") cable_route_ghosts_only();
 else if (EXPORT_PART == "base_duct") base_duct();
 else if (EXPORT_PART == "front_fan_cassette") front_fan_cassette();
 else if (EXPORT_PART == "front_fan_cassette_body") front_fan_cassette_body();

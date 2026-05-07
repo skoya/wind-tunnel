@@ -109,8 +109,13 @@ pi_support_rear_y = pi_y + pi_card_d + 5;
 pi_frame_mount_boss_h = 8;
 pi_frame_mount_boss_d = 10;
 pi_frame_mount_foot_h = 4;
-pi_frame_mount_foot_d = 12;
-pi_frame_mount_screw_d = 3.4; // M3 clearance through base bosses and removable Pi frame
+pi_frame_mount_foot_d = 13;
+pi_frame_clip_stem_d = 5.8;
+pi_frame_clip_head_d = 7.0;
+pi_frame_clip_hole_d = 6.2;
+pi_frame_clip_slot_w = 3.2;
+pi_frame_clip_stem_h = 4.2;
+pi_frame_clip_head_h = 2.6;
 pi_pull_tab_h = 7;       // kept low so installed cassette clears a seated lid
 pi_pull_tab_overhang = 6; // rear grip lip, below lid envelope
 
@@ -283,8 +288,8 @@ module base_duct() {
             ugreen_cradle();
 
             // The Pi cassette gantry is no longer printed as a cantilevered part
-            // of the base. The base only gets low vertical bosses; the removable
-            // Pi frame bolts on after printing.
+            // of the base. The base gets low vertical clip pegs; the removable
+            // Pi frame snaps onto them after printing.
             base_pi_frame_mount_bosses();
         }
 
@@ -294,9 +299,6 @@ module base_duct() {
         // rear exhaust/cable opening
         translate([8, body_d-wall-1, 10]) cube([body_w-16, wall+4, body_h-18]);
         translate([10, body_d-wall-1, 0]) cube([body_w-20, wall+4, 52]);
-
-        // M3 vertical holes for the removable Pi frame.
-        base_pi_frame_mount_holes();
 
         // Floor zip-tie slots replace printed cable lips/hooks in the base.
         cable_tie_floor_slots();
@@ -313,8 +315,8 @@ module front_cassette_receivers() {
 }
 
 module pi_frame_mount_centres() {
-    // Four bolt points around the UGREEN footprint. Children are placed at the
-    // centre of each former support post.
+    // Four clip points around the UGREEN footprint. Children are placed at the
+    // centre of each PLA snap peg.
     left_outer_x = body_w/2 - pi_gap/2 - pi_stack_t - 4;
     right_outer_x = body_w/2 + pi_gap/2 + pi_stack_t + 1;
     for (x=[left_outer_x + pi_support_post_t/2, right_outer_x + pi_support_post_t/2],
@@ -324,13 +326,26 @@ module pi_frame_mount_centres() {
 }
 
 module base_pi_frame_mount_bosses() {
-    pi_frame_mount_centres()
+    boss_top_z = floor_h + pi_frame_mount_boss_h;
+    pi_frame_mount_centres() {
+        // Broad boss supports the frame foot.
         translate([0,0,floor_h]) cylinder(h=pi_frame_mount_boss_h, d=pi_frame_mount_boss_d);
+        // PLA-friendly snap peg: straight stem plus printable tapered head.
+        translate([0,0,boss_top_z]) cylinder(h=pi_frame_clip_stem_h, d=pi_frame_clip_stem_d);
+        translate([0,0,boss_top_z + pi_frame_clip_stem_h])
+            cylinder(h=pi_frame_clip_head_h, d1=pi_frame_clip_head_d, d2=pi_frame_clip_stem_d);
+    }
 }
 
-module base_pi_frame_mount_holes() {
-    pi_frame_mount_centres()
-        translate([0,0,-1]) cylinder(h=floor_h+pi_frame_mount_boss_h+3, d=pi_frame_mount_screw_d);
+module pi_frame_clip_foot(side=1) {
+    // C-slotted foot snaps over the tapered base peg. The slot gives PLA just
+    // enough compliance without relying on a long fragile spring tab.
+    difference() {
+        cylinder(h=pi_frame_mount_foot_h, d=pi_frame_mount_foot_d);
+        translate([0,0,-1]) cylinder(h=pi_frame_mount_foot_h+2, d=pi_frame_clip_hole_d);
+        translate([side*pi_frame_clip_hole_d/2, -pi_frame_clip_slot_w/2, -1])
+            cube([pi_frame_mount_foot_d, pi_frame_clip_slot_w, pi_frame_mount_foot_h+2]);
+    }
 }
 
 module cable_tie_floor_slots() {
@@ -418,57 +433,65 @@ module pi_receiver_supports() {
     // printable bridge. Feet sit visibly on the base bosses; no hidden overlap.
     left_outer_x = body_w/2 - pi_gap/2 - pi_stack_t - 4;
     right_outer_x = body_w/2 + pi_gap/2 + pi_stack_t + 1;
-    beam_w = right_outer_x - left_outer_x + pi_support_post_t;
+    mount_xL = left_outer_x + pi_support_post_t/2;
+    mount_xR = right_outer_x + pi_support_post_t/2;
+    // Posts attach to the outside of the C-feet, not through the central clip hole.
+    post_xL = mount_xL - pi_frame_mount_foot_d/2 + 0.4;
+    post_xR = mount_xR + pi_frame_mount_foot_d/2 - pi_support_post_t - 0.4;
+    beam_w = post_xR - post_xL + pi_support_post_t;
     boss_top_z = floor_h + pi_frame_mount_boss_h;
     foot_top_z = boss_top_z + pi_frame_mount_foot_h;
     beam_z = pi_z - pi_support_beam_h;
 
-    // Four round feet sit directly on top of the matching base bosses.
-    pi_frame_mount_centres()
-        translate([0,0,boss_top_z]) cylinder(h=pi_frame_mount_foot_h, d=pi_frame_mount_foot_d);
+    // Four C-slotted feet sit directly on the base bosses and snap over the
+    // tapered PLA pegs. Slots face outward so the frame stays laterally located.
+    for (x=[mount_xL, mount_xR],
+         y=[pi_support_front_y + pi_support_post_t/2, pi_support_rear_y + pi_support_post_t/2]) {
+        translate([x, y, boss_top_z]) pi_frame_clip_foot(x < body_w/2 ? -1 : 1);
+    }
 
     // Four side posts, outside the UGREEN width, carry the front/rear beams.
-    for (x=[left_outer_x, right_outer_x], y=[pi_support_front_y, pi_support_rear_y]) {
-        translate([x, y, foot_top_z]) rounded_box([pi_support_post_t, pi_support_post_t, beam_z-foot_top_z], 2);
+    for (x=[post_xL, post_xR], y=[pi_support_front_y, pi_support_rear_y]) {
+        translate([x, y, foot_top_z-0.3]) rounded_box([pi_support_post_t, pi_support_post_t, beam_z-foot_top_z+0.3], 2);
     }
 
     // Front and rear beams are above the UGREEN top and below the cassette rails.
-    translate([left_outer_x, pi_support_front_y, beam_z])
+    translate([post_xL, pi_support_front_y, beam_z])
         rounded_box([beam_w, pi_support_post_t, pi_support_beam_h], 2);
-    translate([left_outer_x, pi_support_rear_y, beam_z])
+    translate([post_xL, pi_support_rear_y, beam_z])
         rounded_box([beam_w, pi_support_post_t, pi_support_beam_h], 2);
 
     // Short longitudinal outer rails stiffen the bridge without crossing the
     // UGREEN centre airflow path.
-    translate([left_outer_x, pi_support_front_y, beam_z])
+    translate([post_xL, pi_support_front_y, beam_z])
         rounded_box([pi_support_post_t, pi_support_rear_y-pi_support_front_y+pi_support_post_t, pi_support_beam_h], 2);
-    translate([right_outer_x, pi_support_front_y, beam_z])
+    translate([post_xR, pi_support_front_y, beam_z])
         rounded_box([pi_support_post_t, pi_support_rear_y-pi_support_front_y+pi_support_post_t, pi_support_beam_h], 2);
 }
 
 module pi_receiver(x, y) {
     // Low-profile guides keep the Pi cassette located without covering board faces.
-    translate([x-2, y, pi_z]) cube([pi_guide_t, pi_card_d, pi_lower_guide_h]);
-    translate([x+pi_stack_t-1, y, pi_z]) cube([pi_guide_t, pi_card_d, pi_lower_guide_h]);
+    // The lower rails overlap the front/rear bridge beams so this is one printable part.
+    rail_z = pi_z - pi_support_beam_h;
+    rail_y0 = pi_support_front_y;
+    rail_len = pi_support_rear_y - pi_support_front_y + pi_support_post_t;
+    translate([x-2, rail_y0, rail_z]) cube([pi_guide_t, rail_len, pi_support_beam_h+pi_lower_guide_h]);
+    translate([x+pi_stack_t-1, rail_y0, rail_z]) cube([pi_guide_t, rail_len, pi_support_beam_h+pi_lower_guide_h]);
 
     // rear stop/tab
-    translate([x-2, y+pi_card_d-5, pi_z]) cube([pi_stack_t+4, 5, 8]);
+    translate([x-2, y+pi_card_d-5, pi_z-0.3]) cube([pi_stack_t+4, 5, 8.3]);
 
     // No high anti-tip nubs here: elevated disconnected nubs become slicer floaters.
     // Retention lives on the removable Pi cassette, which is printed as one connected piece.
 }
 
 module pi_frame_bridge_installed() {
-    // Separate bolt-on Pi frame. This keeps the base support-light: print the
-    // base as a duct shell, then install this frame with four M3 screws.
-    difference() {
-        union() {
-            pi_receiver_supports();
-            pi_receiver(body_w/2 - pi_gap/2 - pi_stack_t, pi_y);
-            pi_receiver(body_w/2 + pi_gap/2, pi_y);
-        }
-        pi_frame_mount_centres()
-            translate([0,0,floor_h-1]) cylinder(h=pi_z + pi_lower_guide_h + 4, d=pi_frame_mount_screw_d);
+    // Separate clip-in Pi frame. This keeps the base support-light: print the
+    // base as a duct shell, then press the frame onto the four PLA snap pegs.
+    union() {
+        pi_receiver_supports();
+        pi_receiver(body_w/2 - pi_gap/2 - pi_stack_t, pi_y);
+        pi_receiver(body_w/2 + pi_gap/2, pi_y);
     }
 }
 
@@ -1044,7 +1067,7 @@ module assembly() {
 module assembly_exploded() {
     // Inspection-only view showing join directions:
     // lid drops onto the base rim, front cassette slides into front receivers,
-    // removable Pi bridge bolts to four base bosses, then Pi cassettes slide in.
+    // removable Pi bridge snaps onto four base pegs, then Pi cassettes slide in.
     base_duct();
 
     translate([0,0,body_h+48])

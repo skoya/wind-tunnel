@@ -37,13 +37,13 @@ The assembly export is for inspection only. Print individual parts.
 
 ### Support-light base notes
 
-The Pi cassette support is now a separate `pi_frame_bridge` part. The base only has four low M3 boss holes around the UGREEN bay, avoiding the old integrated cantilever gantry.
+The Pi cassette support is now a separate `pi_frame_bridge` part. The base has four low PLA clip pegs around the UGREEN bay, avoiding the old integrated cantilever gantry and avoiding screws/inserts.
 
 Recommended print/assembly order:
 
 1. Print `base_duct.stl` upright.
 2. Print `pi_frame_bridge.stl` as exported; it is flipped upside-down so the cross beams sit on the bed and the posts grow upward.
-3. Bolt the Pi frame into the four base bosses with M3 screws.
+3. Press the Pi frame C-slotted feet down over the four tapered PLA pegs on the base.
 4. Slide/fit the Pi cassettes into the removable frame.
 
 Cable management in the base should use the floor zip-tie slots rather than printed overhanging cable lips.

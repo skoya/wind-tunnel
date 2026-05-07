@@ -108,6 +108,8 @@ pi_support_front_y = pi_y - 8;
 pi_support_rear_y = pi_y + pi_card_d + 5;
 pi_frame_mount_boss_h = 8;
 pi_frame_mount_boss_d = 10;
+pi_frame_mount_foot_h = 4;
+pi_frame_mount_foot_d = 12;
 pi_frame_mount_screw_d = 3.4; // M3 clearance through base bosses and removable Pi frame
 pi_pull_tab_h = 7;       // kept low so installed cassette clears a seated lid
 pi_pull_tab_overhang = 6; // rear grip lip, below lid envelope
@@ -413,26 +415,30 @@ module ugreen_cradle() {
 
 module pi_receiver_supports() {
     // The Pi receiver rails sit above the UGREEN bay, so they need their own
-    // printable gantry. Posts are placed outside the UGREEN footprint and the
-    // cross-beams sit above the UGREEN top clearance.
+    // printable bridge. Feet sit visibly on the base bosses; no hidden overlap.
     left_outer_x = body_w/2 - pi_gap/2 - pi_stack_t - 4;
     right_outer_x = body_w/2 + pi_gap/2 + pi_stack_t + 1;
     beam_w = right_outer_x - left_outer_x + pi_support_post_t;
+    boss_top_z = floor_h + pi_frame_mount_boss_h;
+    foot_top_z = boss_top_z + pi_frame_mount_foot_h;
     beam_z = pi_z - pi_support_beam_h;
+
+    // Four round feet sit directly on top of the matching base bosses.
+    pi_frame_mount_centres()
+        translate([0,0,boss_top_z]) cylinder(h=pi_frame_mount_foot_h, d=pi_frame_mount_foot_d);
 
     // Four side posts, outside the UGREEN width, carry the front/rear beams.
     for (x=[left_outer_x, right_outer_x], y=[pi_support_front_y, pi_support_rear_y]) {
-        translate([x, y, floor_h]) rounded_box([pi_support_post_t, pi_support_post_t, beam_z-floor_h], 2);
+        translate([x, y, foot_top_z]) rounded_box([pi_support_post_t, pi_support_post_t, beam_z-foot_top_z], 2);
     }
 
-    // Front and rear gantry beams. These are above the UGREEN top and below the
-    // cassette rails, so the cassettes no longer float in mid-air.
+    // Front and rear beams are above the UGREEN top and below the cassette rails.
     translate([left_outer_x, pi_support_front_y, beam_z])
         rounded_box([beam_w, pi_support_post_t, pi_support_beam_h], 2);
     translate([left_outer_x, pi_support_rear_y, beam_z])
         rounded_box([beam_w, pi_support_post_t, pi_support_beam_h], 2);
 
-    // Short longitudinal outer ledges stiffen the gantry without crossing the
+    // Short longitudinal outer rails stiffen the bridge without crossing the
     // UGREEN centre airflow path.
     translate([left_outer_x, pi_support_front_y, beam_z])
         rounded_box([pi_support_post_t, pi_support_rear_y-pi_support_front_y+pi_support_post_t, pi_support_beam_h], 2);

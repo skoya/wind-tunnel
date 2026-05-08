@@ -24,6 +24,7 @@
 // - v2.15 slims walls/front clips and adds Noctua USB fan-cable routing clips.
 // - v2.16 lowers Mac mini elevation while preserving a clear top-fan outlet plenum.
 // - v2.17 vents Pi cassette trays, removes UGREEN straps/towers, adds top Noctua grille.
+// - v2.18 aesthetic pass: calmer side strakes, cleaner front brow, and a floating Mac halo.
 // - Airflow-optimised internals keep UGREEN front/rear/underside grilles open.
 // - Open front-to-back duct keeps airflow unobstructed; Pi guide vanes removed.
 // - Part envelopes are asserted against the Bambu Lab P1S build volume.
@@ -44,6 +45,13 @@ SHOW_GHOSTS = true;
 wall = 1.8;       // ~4-5 perimeters with 0.4mm nozzle; PETG-safe but less chunky
 floor_h = 5;    // lighter base floor; rely on walls/infill for stiffness
 corner_r = 12;
+
+// Aesthetic skin details are shallow, non-structural, and easy to revert.
+// They sit outside the airflow path: no internal fins, no extra fan blockage.
+aesthetic_skin_t = 1.2;
+aesthetic_strake_h = 2.2;
+aesthetic_strake_r = 1.1;
+aesthetic_brow_h = 5;
 clearance = 0.6;
 join_clearance = 0.45; // loose printed clearance for removable slide/drop-in joins
 
@@ -279,6 +287,10 @@ module base_duct() {
             translate([0,0,0]) rounded_box([wall, body_d, body_h], 3);
             translate([body_w-wall,0,0]) rounded_box([wall, body_d, body_h], 3);
 
+            // shallow exterior styling, kept out of the pressure path
+            aesthetic_side_strakes();
+            aesthetic_front_brow();
+
             // rear low lip, no mesh
             translate([0, body_d-wall, 0]) cube([body_w, wall, 34]);
 
@@ -303,6 +315,43 @@ module base_duct() {
         // Floor zip-tie slots replace printed cable lips/hooks in the base.
         cable_tie_floor_slots();
     }
+}
+
+module aesthetic_side_strakes() {
+    // Three long, quiet horizontal shadow lines on each side. They make the tall
+    // duct read more like a deliberate appliance and less like a project box.
+    strake_y = 18;
+    strake_len = body_d - 48;
+    for (side=[-1,1]) {
+        x = side < 0 ? -aesthetic_skin_t + 0.25 : body_w - 0.25;
+        for (z=[44, 82, 120]) {
+            translate([x, strake_y, z])
+                rounded_box([aesthetic_skin_t, strake_len, aesthetic_strake_h], aesthetic_strake_r);
+        }
+
+        // Short vertical nose accent ties the front cassette into the main body.
+        translate([x, 4, 26])
+            rounded_box([aesthetic_skin_t, 34, body_h-54], 2.2);
+    }
+}
+
+module aesthetic_front_brow() {
+    // A slim upper brow visually frames the intake without adding bars across it.
+    // It overlaps both side walls slightly so it exports as one printable shell.
+    translate([0, 1.5, body_h-18])
+        rounded_box([body_w, aesthetic_skin_t, aesthetic_brow_h], 2.5);
+}
+
+module top_lid_style_reveal() {
+    // Raised perimeter/reveal lines on the top lid. The centre remains open for
+    // the upward 140mm fan and Mac underside airflow.
+    z = top_lid_thick - 0.25;
+    inset = 9;
+    rail = 2.4;
+    translate([inset, inset, z]) rounded_box([body_w-2*inset, rail, 1.6], 1.2);
+    translate([inset, body_d-inset-rail, z]) rounded_box([body_w-2*inset, rail, 1.6], 1.2);
+    translate([inset, inset, z]) rounded_box([rail, body_d-2*inset, 1.6], 1.2);
+    translate([body_w-inset-rail, inset, z]) rounded_box([rail, body_d-2*inset, 1.6], 1.2);
 }
 
 module front_cassette_receivers() {
@@ -653,6 +702,9 @@ module lid_mac_saddle() {
                 // Mac guides touch only corners/edges; centre is open
                 mac_guides();
 
+                // subtle top reveal makes the Mac look intentionally floated
+                top_lid_style_reveal();
+
                 // rear cable guard for Mac, not a wall blocking exhaust
                 translate([mac_saddle_x, mac_saddle_y+mac_saddle_d+7, top_lid_thick])
                     rounded_box([mac_saddle_w, 6, mac_rail_h], 3);
@@ -706,17 +758,26 @@ module mac_guides() {
     x = mac_saddle_x;
     y = mac_saddle_y;
     z = top_lid_thick + mac_deck_lift;
+    puck = 30;
+    puck_h = 1.8;
+
+    // Low rounded corner pucks visually echo the Mac mini radius while keeping
+    // the centre open for airflow. The taller lips sit only at the corners.
+    for (sx=[0,1], sy=[0,1]) {
+        translate([x + sx*(mac_saddle_w-puck), y + sy*(mac_saddle_d-puck), z-puck_h])
+            rounded_box([puck, puck, puck_h], 7);
+    }
 
     // corner guides only; do not form a tray that blocks underside airflow
-    translate([x, y, z]) rounded_box([24, mac_rail_t, mac_rail_h], 3);
-    translate([x+mac_saddle_w-24, y, z]) rounded_box([24, mac_rail_t, mac_rail_h], 3);
-    translate([x, y+mac_saddle_d-mac_rail_t, z]) rounded_box([24, mac_rail_t, mac_rail_h], 3);
-    translate([x+mac_saddle_w-24, y+mac_saddle_d-mac_rail_t, z]) rounded_box([24, mac_rail_t, mac_rail_h], 3);
+    translate([x, y, z]) rounded_box([26, mac_rail_t, mac_rail_h], 3.5);
+    translate([x+mac_saddle_w-26, y, z]) rounded_box([26, mac_rail_t, mac_rail_h], 3.5);
+    translate([x, y+mac_saddle_d-mac_rail_t, z]) rounded_box([26, mac_rail_t, mac_rail_h], 3.5);
+    translate([x+mac_saddle_w-26, y+mac_saddle_d-mac_rail_t, z]) rounded_box([26, mac_rail_t, mac_rail_h], 3.5);
 
-    translate([x, y, z]) rounded_box([mac_rail_t, 24, mac_rail_h], 3);
-    translate([x+mac_saddle_w-mac_rail_t, y, z]) rounded_box([mac_rail_t, 24, mac_rail_h], 3);
-    translate([x, y+mac_saddle_d-24, z]) rounded_box([mac_rail_t, 24, mac_rail_h], 3);
-    translate([x+mac_saddle_w-mac_rail_t, y+mac_saddle_d-24, z]) rounded_box([mac_rail_t, 24, mac_rail_h], 3);
+    translate([x, y, z]) rounded_box([mac_rail_t, 26, mac_rail_h], 3.5);
+    translate([x+mac_saddle_w-mac_rail_t, y, z]) rounded_box([mac_rail_t, 26, mac_rail_h], 3.5);
+    translate([x, y+mac_saddle_d-26, z]) rounded_box([mac_rail_t, 26, mac_rail_h], 3.5);
+    translate([x+mac_saddle_w-mac_rail_t, y+mac_saddle_d-26, z]) rounded_box([mac_rail_t, 26, mac_rail_h], 3.5);
 }
 
 module mac_saddle_risers() {

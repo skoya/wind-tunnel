@@ -25,6 +25,7 @@
 // - v2.16 lowers Mac mini elevation while preserving a clear top-fan outlet plenum.
 // - v2.17 vents Pi cassette trays, removes UGREEN straps/towers, adds top Noctua grille.
 // - v2.18 aesthetic pass: calmer side strakes, cleaner front brow, and a floating Mac halo.
+// - v2.19 accommodates two Noctua NF-F12 120x25mm fans on the upper Mac cooler.
 // - Airflow-optimised internals keep UGREEN front/rear/underside grilles open.
 // - Open front-to-back duct keeps airflow unobstructed; Pi guide vanes removed.
 // - Part envelopes are asserted against the Bambu Lab P1S build volume.
@@ -173,18 +174,22 @@ mac_rail_t = 5;
 mac_riser_t = 5;
 top_grille_standoff = 0; // top grille removed: Mac is supported by rails, leaving fan outlet open
 
-// Clip-on upper cooler for Mac mini + 100x100x18mm heatsink.
+// Clip-on upper cooler for Mac mini + heatsink + two Noctua NF-F12 fans.
 // This is a separate printable bridge so the Mac can still slide out of the saddle.
 heatsink_w = 100;
 heatsink_d = 100;
 heatsink_h = 18;
 heatsink_clearance = 3;
-upper_fan_size = 100;
+upper_fan_size = 120;          // Noctua NF-F12: 120 x 120 x 25mm
 upper_fan_thick = 25;
-upper_fan_mount_spacing = 83; // common 100mm fan pattern; verify exact fan
+upper_fan_mount_spacing = 105; // Noctua NF-F12 mounting pattern
 upper_fan_screw_d = 4.4;
-upper_bridge_w = upper_fan_size + 10; // low clip footprint around 100mm fan, not around the Mac
-upper_bridge_d = upper_fan_size + 10;
+upper_fan_air_opening = 108;      // airflow aperture inside each 120mm frame; leaves material under the fan frame
+upper_fan_count = 2;
+upper_fan_gap = 6;             // tight centre spine: keeps dual bridge within 256mm P1S X limit
+upper_fan_margin = 5;
+upper_bridge_w = upper_fan_count*upper_fan_size + upper_fan_gap + upper_fan_margin*2;
+upper_bridge_d = upper_fan_size + upper_fan_margin*2;
 upper_cooler_leg_t = 5.0;
 upper_cooler_frame_t = 5;
 upper_bridge_corner_r = 8;
@@ -827,42 +832,53 @@ module pi_cassette(label="L") {
 // -------------------------
 // Upper Mac heatsink/fan bridge
 // -------------------------
+module upper_fan_origins() {
+    // Children are placed at each NF-F12 frame origin.
+    for (i=[0:upper_fan_count-1]) {
+        translate([upper_fan_margin + i*(upper_fan_size + upper_fan_gap), upper_fan_margin, 0]) children();
+    }
+}
+
 module upper_mac_fan_bridge() {
-    // Low retaining clip for the 100mm fan sitting directly on the heatsink.
-    // No tall Mac-surrounding legs: the Mac is already carried by the saddle,
-    // and the fan is already carried by the heatsink.
+    // Low retaining clip for two NF-F12 fans sitting directly on/over the heatsink.
+    // No tall Mac-surrounding legs: the Mac is already carried by the saddle.
     bridge_w = upper_bridge_w;
     bridge_d = upper_bridge_d;
-    fan_x = (bridge_w - upper_fan_size)/2;
-    fan_y = (bridge_d - upper_fan_size)/2;
     base_h = 4;
     clip_h = upper_fan_lip_h + base_h;
-    lip_overlap = 4;
+    lip_overlap = 5;
 
     difference() {
         union() {
-            // One connected perimeter ring around the 100mm fan frame.
+            // One connected dual-fan perimeter ring. The narrow centre spine is
+            // intentional: two 120mm fans + margins fit exactly in a 256mm P1S bed.
             difference() {
                 rounded_box([bridge_w, bridge_d, base_h], upper_bridge_corner_r);
-                translate([fan_x, fan_y, -1]) rounded_box([upper_fan_size, upper_fan_size, base_h+2], 3);
+                upper_fan_origins()
+                    translate([(upper_fan_size-upper_fan_air_opening)/2,
+                               (upper_fan_size-upper_fan_air_opening)/2,
+                               -1])
+                        rounded_box([upper_fan_air_opening, upper_fan_air_opening, base_h+2], 3);
             }
 
-            // Four tiny over-lips at the fan-frame corners.
-            for (sx=[0,1], sy=[0,1]) {
-                translate([fan_x + sx*(upper_fan_size-lip_overlap),
-                           fan_y + sy*(upper_fan_size-lip_overlap),
-                           base_h])
-                    rounded_box([lip_overlap, lip_overlap, upper_fan_lip_h], 1.2);
-            }
+            // Small over-lips at the fan-frame corners to stop lift/rattle.
+            upper_fan_origins()
+                for (sx=[0,1], sy=[0,1]) {
+                    translate([sx*(upper_fan_size-lip_overlap),
+                               sy*(upper_fan_size-lip_overlap),
+                               base_h])
+                        rounded_box([lip_overlap, lip_overlap, upper_fan_lip_h], 1.2);
+                }
         }
 
-        // Screw/zip-tie clearance through the ring at the fan mounting pattern.
-        for (sx=[-1,1], sy=[-1,1]) {
-            translate([bridge_w/2 + sx*upper_fan_mount_spacing/2,
-                       bridge_d/2 + sy*upper_fan_mount_spacing/2,
-                       -1])
-                cylinder(h=clip_h+2, d=upper_fan_screw_d);
-        }
+        // Screw/zip-tie clearance through the ring at each NF-F12 mounting pattern.
+        upper_fan_origins()
+            for (sx=[-1,1], sy=[-1,1]) {
+                translate([upper_fan_size/2 + sx*upper_fan_mount_spacing/2,
+                           upper_fan_size/2 + sy*upper_fan_mount_spacing/2,
+                           -1])
+                    cylinder(h=clip_h+2, d=upper_fan_screw_d);
+            }
     }
 }
 
@@ -1037,12 +1053,12 @@ module wire_segment(p0, p1, d) {
 }
 
 
-module upper_100mm_fan_ghost() {
+module upper_nf_f12_fan_ghost() {
     color([0.18,0.18,0.18,0.28])
     difference() {
         rounded_box([upper_fan_size, upper_fan_size, upper_fan_thick], 6);
         translate([upper_fan_size/2, upper_fan_size/2, -1])
-            cylinder(h=upper_fan_thick+2, d=88);
+            cylinder(h=upper_fan_thick+2, d=104);
         for (sx=[-1,1], sy=[-1,1]) {
             translate([upper_fan_size/2 + sx*upper_fan_mount_spacing/2,
                        upper_fan_size/2 + sy*upper_fan_mount_spacing/2, -1])
@@ -1052,15 +1068,17 @@ module upper_100mm_fan_ghost() {
 
     color([0.05,0.05,0.05,0.32])
     translate([upper_fan_size/2, upper_fan_size/2, upper_fan_thick/2])
-        cylinder(h=upper_fan_thick+1, d=28, center=true);
+        cylinder(h=upper_fan_thick+1, d=32, center=true);
 }
 
 module mac_upper_cooler_preview() {
     color([0.75,0.75,0.8,0.35]) translate([(upper_bridge_w-mac_w)/2, (upper_bridge_d-mac_d)/2, 0]) cube([mac_w, mac_d, mac_h]);
     color([0.25,0.25,0.28,0.45]) translate([(upper_bridge_w-heatsink_w)/2, (upper_bridge_d-heatsink_d)/2, mac_h]) cube([heatsink_w, heatsink_d, heatsink_h]);
-    // Clip is shown at fan level, around the fan frame, not as a tall stand.
-    translate([(upper_bridge_w-upper_fan_size)/2, (upper_bridge_d-upper_fan_size)/2, mac_h + heatsink_h + upper_cooler_gap]) upper_100mm_fan_ghost();
-    translate([0, 0, mac_h + heatsink_h + upper_cooler_gap]) color([0.9,0.9,0.9,0.72]) upper_mac_fan_bridge();
+    // Clip is shown at fan level, around the dual NF-F12 frames, not as a tall stand.
+    translate([0, 0, mac_h + heatsink_h + upper_cooler_gap]) {
+        upper_fan_origins() upper_nf_f12_fan_ghost();
+        color([0.9,0.9,0.9,0.72]) upper_mac_fan_bridge();
+    }
 }
 
 module hardware_ghosts_only() {
@@ -1094,11 +1112,11 @@ module hardware_ghosts_only() {
     translate([body_w/2-heatsink_w/2, mac_saddle_y+mac_clearance+mac_d/2-heatsink_d/2, mac_top_z+mac_h])
         cube([heatsink_w, heatsink_d, heatsink_h]);
 
-    // Optional third 100mm fan: frame rests directly on/just above the heatsink.
-    translate([body_w/2 - upper_fan_size/2,
-               mac_saddle_y+mac_clearance+mac_d/2 - upper_fan_size/2,
+    // Dual Noctua NF-F12 top fans: bridge/fans overhang the Mac symmetrically.
+    translate([body_w/2 - upper_bridge_w/2,
+               mac_saddle_y+mac_clearance+mac_d/2 - upper_bridge_d/2,
                mac_top_z + mac_h + heatsink_h + upper_cooler_gap])
-        upper_100mm_fan_ghost();
+        upper_fan_origins() upper_nf_f12_fan_ghost();
 
     cable_route_ghosts_only();
 }

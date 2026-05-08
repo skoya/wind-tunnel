@@ -1,3 +1,4 @@
+exports/airflow/airflow_surrogate_summary.txt
 KOYA airflow surrogate check
 Method: 2D pressure/velocity solve on simplified CAD slices; qualitative only.
 Top fan scenario: single Noctua NF-F12 top-base pull, qualitative pressure-biased surrogate; top outlet pressure -0.35 vs rear outlet 0.00.
@@ -43,3 +44,11 @@ Generated images:
   exports/airflow/side_slice_through_pi_stack_vented_ugreen.png
   exports/airflow/side_slice_through_centre_gap_solid_ugreen.png
   exports/airflow/side_slice_through_centre_gap_vented_ugreen.png
+
+name,left,right,centre,outer,score
+long centre splitter,0.2389,0.1221,0.2387,0.0177,0.1191
+short centre splitter,0.1424,0.1199,0.0788,0.0177,0.1097
+short splitter + side shoulders,0.1378,0.1202,0.0789,0.0219,0.1071
+baseline,0.1227,0.1224,0.0644,0.0177,0.1046
+outer partial fences,0.1226,0.1224,0.0644,0.0198,0.1044
+side shoulders,0.1180,0.1226,0.0645,0.0219,0.1020

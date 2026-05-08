@@ -12,6 +12,14 @@ import matplotlib.pyplot as plt
 OUT = Path('exports/airflow')
 OUT.mkdir(parents=True, exist_ok=True)
 
+# Stronger-top-fan scenario.
+# The Noctua NF-F12 replacing the old 140mm top-base fan is not a full CFD fan
+# curve, but modelling the top extraction as a lower-pressure outlet gives a
+# useful conservative check for whether the faster 120mm top-base pull starves
+# rear flow or improves over-Mac/Pi flow.
+TOP_OUTLET_PRESSURE = -0.35
+TOP_FAN_MODEL_LABEL = 'single Noctua NF-F12 top-base pull, qualitative pressure-biased surrogate'
+
 # CAD dimensions, mm
 body_w = 154
 body_d = 208
@@ -20,6 +28,8 @@ wall = 1.8
 front_cassette_d = 36
 fan_size = 140
 fan_thick = 25
+top_base_fan_size = 120
+top_base_fan_thick = 25
 floor_h = 5
 ugreen_w, ugreen_l, ugreen_h = 50, 122, 24
 ugreen_y = front_cassette_d + 28
@@ -41,20 +51,29 @@ pi_y0, pi_y1 = pi_y + 4, pi_y + 4 + 85
 pi_z0, pi_z1 = pi_z + 4, pi_z + 4 + 56
 fan_x0, fan_x1 = (body_w-fan_size)/2, (body_w+fan_size)/2
 fan_z0, fan_z1 = (body_h-fan_size)/2, (body_h+fan_size)/2
-top_fan_y0, top_fan_y1 = 48, 48+140
-top_fan_z0, top_fan_z1 = body_h - fan_thick, body_h
+top_fan_y0, top_fan_y1 = 58, 58+top_base_fan_size
+top_fan_z0, top_fan_z1 = body_h - top_base_fan_thick, body_h
 
 
-def solve_pressure(nx, ny, solid, inlet, outlet, iters=5000, relax=0.72):
-    """Stable weighted-Jacobi Laplace solve with fixed inlet/outlet pressure."""
+def solve_pressure(nx, ny, solid, inlet, outlet, iters=5000, relax=0.72, fixed_pressure=None):
+    """Stable weighted-Jacobi Laplace solve with fixed pressure boundaries.
+
+    Default: inlet=1, outlet=0. If fixed_pressure is supplied, finite entries
+    override those defaults, which lets us model a stronger top fan as a lower
+    pressure outlet while keeping the rear outlet at normal pressure.
+    """
     p = np.zeros((ny, nx), dtype=float)
-    fixed = inlet | outlet | solid
-    p[inlet] = 1.0
-    p[outlet] = 0.0
+    if fixed_pressure is None:
+        fixed_pressure = np.full((ny, nx), np.nan, dtype=float)
+        fixed_pressure[inlet] = 1.0
+        fixed_pressure[outlet] = 0.0
+    fixed_boundary = np.isfinite(fixed_pressure)
+    fixed = fixed_boundary | solid
+    p[fixed_boundary] = fixed_pressure[fixed_boundary]
     yy = np.linspace(1, 0, ny)[:, None]
     p[~fixed] = yy.repeat(nx, axis=1)[~fixed]
 
-    upd = (~solid) & ~inlet & ~outlet
+    upd = (~solid) & ~fixed_boundary
     for _ in range(iters):
         q = p.copy()
         q[solid] = 0.0
@@ -67,8 +86,7 @@ def solve_pressure(nx, ny, solid, inlet, outlet, iters=5000, relax=0.72):
         rt = np.where(sn[1:-1,2:], centre, pn[1:-1,2:])
         avg = 0.25*(up+dn+lf+rt)
         p[upd] = (1-relax)*p[upd] + relax*avg[upd]
-        p[inlet] = 1.0
-        p[outlet] = 0.0
+        p[fixed_boundary] = fixed_pressure[fixed_boundary]
     p[solid] = np.nan
     return p
 
@@ -88,9 +106,9 @@ def rect(mask, x0, x1, y0, y1, sx=1, sy=1):
     mask[iy0:iy1, ix0:ix1] = True
 
 
-def plot_case(name, extent, solid, inlet, outlet, labels):
+def plot_case(name, extent, solid, inlet, outlet, labels, fixed_pressure=None):
     ny, nx = solid.shape
-    p = solve_pressure(nx, ny, solid, inlet, outlet)
+    p = solve_pressure(nx, ny, solid, inlet, outlet, fixed_pressure=fixed_pressure)
     u,v = velocity(p, solid)
     speed = np.sqrt(u*u+v*v)
     fig, ax = plt.subplots(figsize=(9, 6), dpi=160)
@@ -157,9 +175,16 @@ outer_speed = np.nanmean(np.r_[speed[y0:y1,int(wall):int(pi_xL0)].ravel(), speed
 nx2, ny2 = body_d, body_h
 inlet2 = np.zeros((ny2,nx2), bool); outlet2 = np.zeros((ny2,nx2), bool)
 inlet2[int(fan_z0):int(fan_z1), 0:2] = True
-outlet2[:, -2:] = True
-# top fan extraction as outlet on top between its y range
-outlet2[-2:, int(top_fan_y0):int(top_fan_y1)] = True
+rear_outlet2 = np.zeros((ny2,nx2), bool)
+top_outlet2 = np.zeros((ny2,nx2), bool)
+rear_outlet2[:, -2:] = True
+# top extraction outlet between its y range, pressure-biased for faster top fans
+top_outlet2[-2:, int(top_fan_y0):int(top_fan_y1)] = True
+outlet2 = rear_outlet2 | top_outlet2
+fixed2 = np.full((ny2,nx2), np.nan, dtype=float)
+fixed2[inlet2] = 1.0
+fixed2[rear_outlet2] = 0.0
+fixed2[top_outlet2] = TOP_OUTLET_PRESSURE
 
 
 def add_ugreen_solid(mask):
@@ -194,7 +219,7 @@ rect(solid2, 0, body_d, 0, floor_h)  # floor
 rect(solid2, pi_y0, pi_y1, pi_z0, pi_z1)  # Pi obstruction in side slice
 add_ugreen_solid(solid2)
 p2,u2,v2,speed2,side_pi_path = plot_case('Side slice through Pi stack solid UGREEN', [0, body_d, 0, body_h], solid2, inlet2, outlet2,
-    [('front fan',(8,body_h/2)),('solid UGREEN',(ugreen_y0+ugreen_l/2,ugreen_z0+ugreen_h/2)),('Pi 56mm',(pi_y0+42,pi_z0+28)),('top fan outlet',(top_fan_y0+70,body_h-8)),('rear outlet',(body_d-8,80))])
+    [('front fan',(8,body_h/2)),('solid UGREEN',(ugreen_y0+ugreen_l/2,ugreen_z0+ugreen_h/2)),('Pi 56mm',(pi_y0+42,pi_z0+28)),('stronger top pull',(top_fan_y0+70,body_h-8)),('rear outlet',(body_d-8,80))], fixed_pressure=fixed2)
 side_pi_rear_flux, side_pi_top_flux, side_pi_rear_pct, side_pi_top_pct = outlet_split(u2, v2)
 
 # Vented UGREEN through Pi stack.
@@ -203,7 +228,7 @@ rect(solid2v, 0, body_d, 0, floor_h)
 rect(solid2v, pi_y0, pi_y1, pi_z0, pi_z1)
 add_ugreen_vented(solid2v)
 p2v,u2v,v2v,speed2v,side_pi_vented_path = plot_case('Side slice through Pi stack vented UGREEN', [0, body_d, 0, body_h], solid2v, inlet2, outlet2,
-    [('front fan',(8,body_h/2)),('vented UGREEN model',(ugreen_y0+ugreen_l/2,ugreen_z0+ugreen_h/2)),('Pi 56mm',(pi_y0+42,pi_z0+28)),('top fan outlet',(top_fan_y0+70,body_h-8)),('rear outlet',(body_d-8,80))])
+    [('front fan',(8,body_h/2)),('vented UGREEN model',(ugreen_y0+ugreen_l/2,ugreen_z0+ugreen_h/2)),('Pi 56mm',(pi_y0+42,pi_z0+28)),('stronger top pull',(top_fan_y0+70,body_h-8)),('rear outlet',(body_d-8,80))], fixed_pressure=fixed2)
 side_pi_vent_rear_flux, side_pi_vent_top_flux, side_pi_vent_rear_pct, side_pi_vent_top_pct = outlet_split(u2v, v2v)
 ugreen_slot_speed_pi = np.nanmean(speed2v[int(ugreen_z0+4):int(ugreen_z0+21), int(ugreen_y0):int(ugreen_y1)])
 
@@ -213,21 +238,22 @@ rect(solid3, 0, body_d, 0, floor_h)
 add_ugreen_solid(solid3)
 inlet3 = inlet2.copy(); outlet3 = outlet2.copy()
 p3,u3,v3,speed3,side_gap_path = plot_case('Side slice through centre gap solid UGREEN', [0, body_d, 0, body_h], solid3, inlet3, outlet3,
-    [('front fan',(8,body_h/2)),('solid UGREEN',(ugreen_y0+ugreen_l/2,ugreen_z0+ugreen_h/2)),('open gap between Pis',(pi_y0+42,pi_z0+28)),('top fan outlet',(top_fan_y0+70,body_h-8)),('rear outlet',(body_d-8,80))])
+    [('front fan',(8,body_h/2)),('solid UGREEN',(ugreen_y0+ugreen_l/2,ugreen_z0+ugreen_h/2)),('open gap between Pis',(pi_y0+42,pi_z0+28)),('stronger top pull',(top_fan_y0+70,body_h-8)),('rear outlet',(body_d-8,80))], fixed_pressure=fixed2)
 side_gap_rear_flux, side_gap_top_flux, side_gap_rear_pct, side_gap_top_pct = outlet_split(u3, v3)
 
 solid3v = np.zeros((ny2,nx2), bool)
 rect(solid3v, 0, body_d, 0, floor_h)
 add_ugreen_vented(solid3v)
 p3v,u3v,v3v,speed3v,side_gap_vented_path = plot_case('Side slice through centre gap vented UGREEN', [0, body_d, 0, body_h], solid3v, inlet3, outlet3,
-    [('front fan',(8,body_h/2)),('vented UGREEN model',(ugreen_y0+ugreen_l/2,ugreen_z0+ugreen_h/2)),('open gap between Pis',(pi_y0+42,pi_z0+28)),('top fan outlet',(top_fan_y0+70,body_h-8)),('rear outlet',(body_d-8,80))])
+    [('front fan',(8,body_h/2)),('vented UGREEN model',(ugreen_y0+ugreen_l/2,ugreen_z0+ugreen_h/2)),('open gap between Pis',(pi_y0+42,pi_z0+28)),('stronger top pull',(top_fan_y0+70,body_h-8)),('rear outlet',(body_d-8,80))], fixed_pressure=fixed2)
 side_gap_vent_rear_flux, side_gap_vent_top_flux, side_gap_vent_rear_pct, side_gap_vent_top_pct = outlet_split(u3v, v3v)
 ugreen_slot_speed_gap = np.nanmean(speed3v[int(ugreen_z0+4):int(ugreen_z0+21), int(ugreen_y0):int(ugreen_y1)])
 
 summary = OUT / 'airflow_surrogate_summary.txt'
 with summary.open('w') as f:
     f.write('KOYA airflow surrogate check\n')
-    f.write('Method: 2D pressure/velocity solve on simplified CAD slices; qualitative only.\n\n')
+    f.write('Method: 2D pressure/velocity solve on simplified CAD slices; qualitative only.\n')
+    f.write(f'Top fan scenario: {TOP_FAN_MODEL_LABEL}; top outlet pressure {TOP_OUTLET_PRESSURE:.2f} vs rear outlet 0.00.\n\n')
     f.write(f'Pi envelope used: x L {pi_xL0:.1f}-{pi_xL1:.1f}, x R {pi_xR0:.1f}-{pi_xR1:.1f}, y {pi_y0:.1f}-{pi_y1:.1f}, z {pi_z0:.1f}-{pi_z1:.1f} mm (56mm high).\n')
     f.write(f'UGREEN envelope: x {ugreen_x0:.1f}-{ugreen_x1:.1f}, y {ugreen_y0:.1f}-{ugreen_y1:.1f}, z {ugreen_z0:.1f}-{ugreen_z1:.1f} mm.\n')
     f.write(f'Top fan underside starts at z {top_fan_z0:.1f}; clearance above Pi top: {top_fan_z0-pi_z1:.1f} mm.\n\n')

@@ -668,44 +668,7 @@ module flat_ring(d_outer, d_inner, h=2.0) {
     }
 }
 
-module mac_roof_cable_hook(x, y, lane_w, cable_d) {
-    // Adapter-safe open roof saddle: the cable is laid in from above/side after
-    // the chunky adapter/plug is already outside the run. No thread-through slot.
-    hook_len = 20;
-    post_t = 3;
-    base_t = 2.2;
-    lip_h = cable_d + 3.0;
-    lip_overhang = 4.0;
-    z0 = top_lid_thick;
-
-    // Low base pad bonded to the lid.
-    translate([x-hook_len/2, y-lane_w/2, z0])
-        rounded_box([hook_len, lane_w, base_t], 1.5);
-
-    // Rear retaining wall and short top lip make a sideways J-hook. Front/top
-    // remain open so USB-C/RJ45/power adapters never need to fit through.
-    translate([x-hook_len/2, y+lane_w/2-post_t, z0])
-        rounded_box([hook_len, post_t, lip_h], 1.5);
-    translate([x-hook_len/2, y+lane_w/2-post_t-lip_overhang, z0+lip_h-post_t])
-        rounded_box([hook_len, lip_overhang+post_t, post_t], 1.5);
-}
-
-module mac_external_cable_holders() {
-    // Mac cables exit the rear face. Let them run flat across the rear roof.
-    // No right-side drop hook: the free cables can bend naturally after the roof run.
-    mac_rear_y = mac_saddle_y + mac_clearance + mac_d;
-    power_lane_y = mac_rear_y + 7;
-    rj45_lane_y = mac_rear_y + 17;
-    usbc_lane_y = mac_rear_y + 27;
-
-    // Rear roof run from the Mac rear area toward the right side.
-    // Three lanes: power, RJ45/network, USB-C.
-    for (x=[body_w/2+12, body_w/2+38, body_w-18]) {
-        mac_roof_cable_hook(x, power_lane_y, 11, mac_power_cable_d);
-        mac_roof_cable_hook(x, rj45_lane_y, 10, mac_rj45_cable_d);
-        mac_roof_cable_hook(x, usbc_lane_y, 9, mac_usbc_cable_d);
-    }
-}
+// Mac mini wire guides removed: cable routing is now external/simple.
 
 // -------------------------
 // Lid + Mac mini saddle
@@ -1060,31 +1023,7 @@ module cable_route_ghosts_only() {
         [top_fan_pi_usb_x, usb_rear_y, top_fan_pi_usb_z]
     ]);
 
-    // Mac rear cables: leave rear ports, flatten onto rear roof lanes, then run right.
-    mac_top_z = body_h+top_lid_thick+mac_deck_lift+mac_rail_h+2;
-    mac_rear_y = mac_saddle_y + mac_clearance + mac_d;
-    roof_z = body_h + top_lid_thick + 5;
-    cable_ghost([
-        [body_w/2-34, mac_rear_y, mac_top_z+16],
-        [body_w/2-24, mac_rear_y+7, roof_z+2],
-        [body_w/2+12, mac_rear_y+7, roof_z+2],
-        [body_w/2+38, mac_rear_y+7, roof_z+2],
-        [body_w-8, mac_rear_y+7, roof_z+2]
-    ], mac_power_cable_d, [0.05,0.05,0.05,0.8]);
-    cable_ghost([
-        [body_w/2, mac_rear_y, mac_top_z+12],
-        [body_w/2+4, mac_rear_y+17, roof_z+1.5],
-        [body_w/2+12, mac_rear_y+17, roof_z+1.5],
-        [body_w/2+38, mac_rear_y+17, roof_z+1.5],
-        [body_w-8, mac_rear_y+17, roof_z+1.5]
-    ], mac_rj45_cable_d, [0.0,0.18,0.8,0.75]);
-    cable_ghost([
-        [body_w/2+34, mac_rear_y, mac_top_z+13],
-        [body_w/2+28, mac_rear_y+27, roof_z+1],
-        [body_w/2+12, mac_rear_y+27, roof_z+1],
-        [body_w/2+38, mac_rear_y+27, roof_z+1],
-        [body_w-8, mac_rear_y+27, roof_z+1]
-    ], mac_usbc_cable_d, [0.55,0.55,0.55,0.8]);
+    // Mac cable ghosts removed with the printed wire guides.
 }
 
 module noctua_140_fan_ghost() {
@@ -1229,8 +1168,9 @@ module fitted_parts() {
     base_duct();
     color([0.92,0.92,0.92,0.70]) pi_frame_bridge_installed();
     translate([0,0,body_h]) color([0.86,0.86,0.86,0.72]) lid_mac_saddle();
+    // Show one installed rocker only. The lid has mirrored mount/window options,
+    // but you print/install a single rocker on the correct side.
     translate([0,0,body_h]) color([1.0,0.72,0.25,0.82]) mac_power_rocker_installed();
-    translate([mac_power_button_x_right-mac_power_button_x_left,0,body_h]) color([1.0,0.72,0.25,0.38]) mac_power_rocker_installed();
     translate([5,0,6]) color([0.9,0.9,0.9,0.78]) front_fan_cassette();
     // Pi holders are integrated into pi_frame_bridge_installed(); no separate cassettes.
     translate([body_w/2-upper_bridge_w/2,

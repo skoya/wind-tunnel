@@ -18,12 +18,14 @@ Recommended starting point:
 - 4–5 walls for structural parts
 - 20–25% gyroid infill
 - 5 top / 5 bottom layers
+- For the support-light lid, try supports **off** first; only the rocker hinge holes may need local/manual help depending on slicer settings.
+- For the base, keep supports off unless the slicer flags the front cassette receiver rails; the rear is intentionally open now.
 - Brim optional for tall parts
 
 ## Print orientation
 - `base_duct.stl`: flat on base.
 - `front_fan_cassette.stl`: rear fan pocket facing up or as slicer suggests; inspect grille bridging.
-- `lid_mac_saddle.stl`: flat lid side down where possible.
+- `lid_mac_saddle.stl`: flat underside down. The old underside locating tongues were removed because they made the slicer support almost the whole lid.
 - `pi_cassette_left/right.stl`: flat tray side down.
 - `upper_mac_fan_bridge.stl`: flat on the broad bridge face; inspect fan-guard bridging.
 

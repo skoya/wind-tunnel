@@ -45,7 +45,7 @@ SHOW_GHOSTS = true;
 // Core dimensions
 // -------------------------
 wall = 1.8;       // ~4-5 perimeters with 0.4mm nozzle; PETG-safe but less chunky
-floor_h = 5;    // lighter base floor; rely on walls/infill for stiffness
+floor_h = 4;    // support/material-light floor; rely on walls/infill for stiffness
 corner_r = 12;
 
 // Aesthetic skin details are shallow, non-structural, and easy to revert.
@@ -325,12 +325,12 @@ module base_duct() {
             translate([0,0,0]) rounded_box([wall, body_d, body_h], 3);
             translate([body_w-wall,0,0]) rounded_box([wall, body_d, body_h], 3);
 
-            // shallow exterior styling, kept out of the pressure path
-            aesthetic_side_strakes();
-            aesthetic_front_brow();
+            // Exterior styling strakes/brow removed in the support-light pass:
+            // less filament, fewer slicer surprises, same pressure path.
 
-            // rear low lip, no mesh
-            translate([0, body_d-wall, 0]) cube([body_w, wall, 34]);
+            // Low rear keeper only. The old taller rear bar wasted material and
+            // made the back look more closed than it really needs to be.
+            translate([0, body_d-wall, 0]) cube([body_w, wall, 12]);
 
             front_cassette_receivers();
 
@@ -726,9 +726,9 @@ module lid_mac_saddle() {
             union() {
                 rounded_box([body_w, body_d, top_lid_thick], corner_r);
 
-                // underside locating tongues
-                translate([wall+1, 12, -5]) cube([8, body_d-24, 5]);
-                translate([body_w-wall-9, 12, -5]) cube([8, body_d-24, 5]);
+                // Underside locating tongues removed: they forced the slicer to
+                // support almost the whole lid. The lid now prints flat on its
+                // underside; location comes from the side walls and Mac/fan hardware.
 
                 // Top 140mm fan mount: fan screws underneath the lid; top pads are low locators only.
                 translate([(body_w-top_base_fan_size)/2, top_fan_y, top_lid_thick])
@@ -743,16 +743,9 @@ module lid_mac_saddle() {
                 // subtle top reveal makes the Mac look intentionally floated
                 top_lid_style_reveal();
 
-                // Rear cable guard/deck for Mac, not a wall blocking exhaust.
-                // The deck also ties the outboard cable holders back into the lid
-                // so they do not export as floating print islands.
-                translate([mac_saddle_x, mac_saddle_y+mac_saddle_d+7, top_lid_thick])
-                    rounded_box([mac_saddle_w, 6, mac_rail_h], 3);
-                translate([body_w/2+2, body_d-2, top_lid_thick])
-                    rounded_box([body_w/2-4, 21, 2.2], 3);
-
-                // External holders route Mac power + USB-C toward the back-right outside edge.
-                mac_external_cable_holders();
+                // Rear horizontal cable guard/deck removed for the support-light pass.
+                // Mac cables can be handled with adhesive clips/Velcro after print;
+                // printed roof bars here cost support and blocked visual access.
 
                 // Rear hinge cheeks for the separate mechanical Mac power rocker.
                 mac_power_rocker_mounts();

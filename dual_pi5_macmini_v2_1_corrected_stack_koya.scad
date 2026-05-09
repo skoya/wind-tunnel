@@ -210,8 +210,11 @@ upper_cooler_h = mac_h + heatsink_h + upper_cooler_gap + upper_fan_thick + upper
 // the contact pad and lid window are intentionally generous so this can be
 // tuned after checking Bobby's actual Mac against the preview/print.
 mac_floor_z = top_lid_thick + mac_deck_lift + mac_rail_h + 2;
-mac_power_button_x = (body_w - mac_w)/2 + 23;
-mac_power_button_y = mac_saddle_y + mac_clearance + mac_d - 25;
+// Apple describes the M4 Mac mini power button as rear-left when viewed
+// from the front. In this CAD coordinate system that lands at the rear/right
+// side of the top-down assembly view, below the rear Thunderbolt-port cluster.
+mac_power_button_x = (body_w + mac_w)/2 - 24;
+mac_power_button_y = mac_saddle_y + mac_clearance + mac_d - 24;
 mac_power_window_w = 46;
 mac_power_window_d = 38;
 rocker_pivot_x = mac_power_button_x;

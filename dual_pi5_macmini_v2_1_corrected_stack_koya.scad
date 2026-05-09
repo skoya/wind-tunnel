@@ -123,16 +123,11 @@ pi_support_post_t = 4.5;
 pi_support_beam_h = 3.5;
 pi_support_front_y = pi_y - 8;
 pi_support_rear_y = pi_y + pi_card_d + 5;
-pi_frame_mount_boss_h = 8;
-pi_frame_mount_boss_d = 10;
-pi_frame_mount_foot_h = 4;
-pi_frame_mount_foot_d = 13;
-pi_frame_clip_stem_d = 5.8;
-pi_frame_clip_head_d = 7.0;
-pi_frame_clip_hole_d = 6.2;
-pi_frame_clip_slot_w = 3.2;
-pi_frame_clip_stem_h = 4.2;
-pi_frame_clip_head_h = 2.6;
+pi_frame_socket_h = 9;       // straight Pi cage legs drop into these base sockets
+pi_frame_socket_boss_d = 12;
+pi_frame_socket_d = 7.4;     // leg diameter + clearance
+pi_frame_leg_d = 6.6;
+pi_frame_leg_clearance = 0.8;
 pi_pull_tab_h = 7;       // kept low so installed cassette clears a seated lid
 pi_pull_tab_overhang = 6; // rear grip lip, below lid envelope
 
@@ -210,11 +205,12 @@ upper_cooler_h = mac_h + heatsink_h + upper_cooler_gap + upper_fan_thick + upper
 // the contact pad and lid window are intentionally generous so this can be
 // tuned after checking Bobby's actual Mac against the preview/print.
 mac_floor_z = top_lid_thick + mac_deck_lift + mac_rail_h + 2;
-// Apple describes the M4 Mac mini power button as rear-left when viewed
-// from the front. In this CAD coordinate system that lands at the rear/right
-// side of the top-down assembly view, below the rear Thunderbolt-port cluster.
-mac_power_button_x = (body_w + mac_w)/2 - 24;
-mac_power_button_y = mac_saddle_y + mac_clearance + mac_d - 24;
+// Apple’s own underside/rear diagrams place the M4 Mac mini power button
+// beneath the rear Thunderbolt-port cluster: rear-left when viewed from the
+// front. In this CAD coordinate system, front is low Y and rear is high Y, so
+// that maps to the rear-left of the Mac footprint.
+mac_power_button_x = (body_w - mac_w)/2 + 23;
+mac_power_button_y = mac_saddle_y + mac_clearance + mac_d - 23;
 mac_power_window_w = 46;
 mac_power_window_d = 38;
 rocker_pivot_x = mac_power_button_x;
@@ -337,9 +333,8 @@ module base_duct() {
             // UGREEN lower cradle
             ugreen_cradle();
 
-            // The Pi cassette gantry is no longer printed as a cantilevered part
-            // of the base. The base gets low vertical clip pegs; the removable
-            // Pi frame snaps onto them after printing.
+            // The Pi cassette gantry is separate. The base only gets four simple
+            // receiver sockets; the removable Pi cage has straight legs that drop in.
             base_pi_frame_mount_bosses();
         }
 
@@ -349,6 +344,9 @@ module base_duct() {
         // rear exhaust/cable opening
         translate([8, body_d-wall-1, 10]) cube([body_w-16, wall+4, body_h-18]);
         translate([10, body_d-wall-1, 0]) cube([body_w-20, wall+4, 52]);
+
+        // Straight receiver holes for the removable Pi cage legs.
+        base_pi_frame_socket_cuts();
 
         // Floor zip-tie slots replace printed cable lips/hooks in the base.
         cable_tie_floor_slots();
@@ -402,8 +400,8 @@ module front_cassette_receivers() {
 }
 
 module pi_frame_mount_centres() {
-    // Four clip points around the UGREEN footprint. Children are placed at the
-    // centre of each PLA snap peg.
+    // Four simple socket/leg points around the UGREEN footprint. No snap heads,
+    // no C-feet: the removable Pi cage drops straight into these holders.
     left_outer_x = body_w/2 - pi_gap/2 - pi_stack_t - 4;
     right_outer_x = body_w/2 + pi_gap/2 + pi_stack_t + 1;
     for (x=[left_outer_x + pi_support_post_t/2, right_outer_x + pi_support_post_t/2],
@@ -413,25 +411,16 @@ module pi_frame_mount_centres() {
 }
 
 module base_pi_frame_mount_bosses() {
-    boss_top_z = floor_h + pi_frame_mount_boss_h;
     pi_frame_mount_centres() {
-        // Broad boss supports the frame foot.
-        translate([0,0,floor_h]) cylinder(h=pi_frame_mount_boss_h, d=pi_frame_mount_boss_d);
-        // PLA-friendly snap peg: straight stem plus printable tapered head.
-        translate([0,0,boss_top_z]) cylinder(h=pi_frame_clip_stem_h, d=pi_frame_clip_stem_d);
-        translate([0,0,boss_top_z + pi_frame_clip_stem_h])
-            cylinder(h=pi_frame_clip_head_h, d1=pi_frame_clip_head_d, d2=pi_frame_clip_stem_d);
+        // Low receiver boss for a straight plug-in Pi cage leg.
+        translate([0,0,floor_h]) cylinder(h=pi_frame_socket_h, d=pi_frame_socket_boss_d);
     }
 }
 
-module pi_frame_clip_foot(side=1) {
-    // C-slotted foot snaps over the tapered base peg. The slot gives PLA just
-    // enough compliance without relying on a long fragile spring tab.
-    difference() {
-        cylinder(h=pi_frame_mount_foot_h, d=pi_frame_mount_foot_d);
-        translate([0,0,-1]) cylinder(h=pi_frame_mount_foot_h+2, d=pi_frame_clip_hole_d);
-        translate([side*pi_frame_clip_hole_d/2, -pi_frame_clip_slot_w/2, -1])
-            cube([pi_frame_mount_foot_d, pi_frame_clip_slot_w, pi_frame_mount_foot_h+2]);
+module base_pi_frame_socket_cuts() {
+    pi_frame_mount_centres() {
+        translate([0,0,floor_h+1.0])
+            cylinder(h=pi_frame_socket_h+2, d=pi_frame_socket_d);
     }
 }
 
@@ -506,9 +495,8 @@ module ugreen_cradle() {
                 translate([x, yy, floor_h]) cylinder(h=ugreen_z-floor_h+ugreen_side_keeper_h, d=ugreen_peg_d);
             }
 
-            // Tunnel edge rails define the lower airflow path without carrying the enclosure.
-            translate([ux-17, uy-8, floor_h]) cube([2.4, min(ugreen_l+16, body_d-uy-10), ugreen_air_under-3]);
-            translate([ux+ugreen_w+14, uy-8, floor_h]) cube([2.4, min(ugreen_l+16, body_d-uy-10), ugreen_air_under-3]);
+            // Extra tunnel edge rails removed: they did not hold the UGREEN up and
+            // just added plastic/visual clutter.
         }
 
     }
@@ -517,42 +505,37 @@ module ugreen_cradle() {
 
 module pi_receiver_supports() {
     // The Pi receiver rails sit above the UGREEN bay, so they need their own
-    // printable bridge. Feet sit visibly on the base bosses; no hidden overlap.
+    // removable bridge. It now uses four straight round legs that drop into
+    // plain sockets in the base: simpler, less plastic, easier to understand.
     left_outer_x = body_w/2 - pi_gap/2 - pi_stack_t - 4;
     right_outer_x = body_w/2 + pi_gap/2 + pi_stack_t + 1;
-    mount_xL = left_outer_x + pi_support_post_t/2;
-    mount_xR = right_outer_x + pi_support_post_t/2;
-    // Posts attach to the outside of the C-feet, not through the central clip hole.
-    post_xL = mount_xL - pi_frame_mount_foot_d/2 + 0.4;
-    post_xR = mount_xR + pi_frame_mount_foot_d/2 - pi_support_post_t - 0.4;
-    beam_w = post_xR - post_xL + pi_support_post_t;
-    boss_top_z = floor_h + pi_frame_mount_boss_h;
-    foot_top_z = boss_top_z + pi_frame_mount_foot_h;
+    leg_xL = left_outer_x + pi_support_post_t/2;
+    leg_xR = right_outer_x + pi_support_post_t/2;
+    beam_xL = leg_xL - pi_support_post_t/2;
+    beam_xR = leg_xR - pi_support_post_t/2;
+    beam_w = beam_xR - beam_xL + pi_support_post_t;
+    socket_top_z = floor_h + pi_frame_socket_h;
     beam_z = pi_z - pi_support_beam_h;
 
-    // Four C-slotted feet sit directly on the base bosses and snap over the
-    // tapered PLA pegs. Slots face outward so the frame stays laterally located.
-    for (x=[mount_xL, mount_xR],
+    // Four straight plug-in legs. The lower section enters the base socket;
+    // the upper section carries the Pi cage beams.
+    for (x=[leg_xL, leg_xR],
          y=[pi_support_front_y + pi_support_post_t/2, pi_support_rear_y + pi_support_post_t/2]) {
-        translate([x, y, boss_top_z]) pi_frame_clip_foot(x < body_w/2 ? -1 : 1);
-    }
-
-    // Four side posts, outside the UGREEN width, carry the front/rear beams.
-    for (x=[post_xL, post_xR], y=[pi_support_front_y, pi_support_rear_y]) {
-        translate([x, y, foot_top_z-0.3]) rounded_box([pi_support_post_t, pi_support_post_t, beam_z-foot_top_z+0.3], 2);
+        translate([x, y, floor_h+1.0])
+            cylinder(h=beam_z - (floor_h+1.0), d=pi_frame_leg_d);
     }
 
     // Front and rear beams are above the UGREEN top and below the cassette rails.
-    translate([post_xL, pi_support_front_y, beam_z])
+    translate([beam_xL, pi_support_front_y, beam_z])
         rounded_box([beam_w, pi_support_post_t, pi_support_beam_h], 2);
-    translate([post_xL, pi_support_rear_y, beam_z])
+    translate([beam_xL, pi_support_rear_y, beam_z])
         rounded_box([beam_w, pi_support_post_t, pi_support_beam_h], 2);
 
     // Short longitudinal outer rails stiffen the bridge without crossing the
     // UGREEN centre airflow path.
-    translate([post_xL, pi_support_front_y, beam_z])
+    translate([beam_xL, pi_support_front_y, beam_z])
         rounded_box([pi_support_post_t, pi_support_rear_y-pi_support_front_y+pi_support_post_t, pi_support_beam_h], 2);
-    translate([post_xR, pi_support_front_y, beam_z])
+    translate([beam_xR, pi_support_front_y, beam_z])
         rounded_box([pi_support_post_t, pi_support_rear_y-pi_support_front_y+pi_support_post_t, pi_support_beam_h], 2);
 }
 
@@ -583,8 +566,8 @@ module pi_frame_bridge_installed() {
 }
 
 module pi_frame_bridge() {
-    // Exported upside-down for printing: the former high cross-beams sit on the
-    // bed and the four posts grow upward, avoiding a supported gantry print.
+    // Exported upside-down for printing: the high cross-beams sit on the bed
+    // and the four straight legs grow upward, avoiding support.
     // In assembly views use pi_frame_bridge_installed().
     translate([0, body_d, pi_z + pi_lower_guide_h])
         rotate([180,0,0]) pi_frame_bridge_installed();

@@ -26,14 +26,15 @@ Recommended starting point:
 - `base_duct.stl`: flat on base.
 - `front_fan_cassette.stl`: rear fan pocket facing up or as slicer suggests; inspect grille bridging.
 - `lid_mac_saddle.stl`: flat underside down. The old underside locating tongues were removed because they made the slicer support almost the whole lid.
-- `pi_frame_bridge.stl`: as exported; it is flipped upside-down so the cross beams sit on the bed and the four straight socket legs grow upward.
-- `pi_cassette_left/right.stl`: flat tray side down.
+- `pi_frame_bridge.stl`: as exported; it is flipped upside-down so the cross beams and integrated Pi holder rails sit on the bed and the four straight socket legs grow upward.
+- Separate Pi cassette STLs are no longer needed; the Pi holders are integrated into `pi_frame_bridge.stl`.
 - `upper_mac_fan_bridge.stl`: flat on the broad bridge face; inspect fan-guard bridging.
 
 ## Pi cage fitting
 
-- The base now has four simple receiver sockets instead of snap pegs.
+- The base now has four shallow receiver sockets instead of snap pegs or tall poles.
 - The removable Pi frame has four straight round legs that drop into those sockets.
+- The Pi holder rails/ribs are now part of the removable Pi frame; no separate Pi cassettes/back bars.
 - If the fit is too tight/loose, tune `pi_frame_socket_d` or `pi_frame_leg_d` in the SCAD file.
 
 ## Mac mini M4 power rocker

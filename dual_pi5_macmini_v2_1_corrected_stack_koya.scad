@@ -123,8 +123,8 @@ pi_support_post_t = 4.5;
 pi_support_beam_h = 3.5;
 pi_support_front_y = pi_y - 8;
 pi_support_rear_y = pi_y + pi_card_d + 5;
-pi_frame_socket_h = 9;       // straight Pi cage legs drop into these base sockets
-pi_frame_socket_boss_d = 12;
+pi_frame_socket_h = 4.5;     // shallow floor sockets; no tall random base poles
+pi_frame_socket_boss_d = 10;
 pi_frame_socket_d = 7.4;     // leg diameter + clearance
 pi_frame_leg_d = 6.6;
 pi_frame_leg_clearance = 0.8;
@@ -171,7 +171,7 @@ mac_saddle_w = mac_w + mac_clearance*2;
 mac_saddle_d = mac_d + mac_clearance*2;
 mac_saddle_x = (body_w - mac_saddle_w)/2;
 mac_saddle_y = top_fan_y + 7;
-mac_deck_lift = mac_air_gap; // Mac rail lift above lid outlet; fan is mounted underneath
+mac_deck_lift = 0; // Mac guides sit flush on the lid/roof; fan remains mounted underneath
 mac_rail_h = 6;
 mac_rail_t = 5;
 mac_riser_t = 5;
@@ -204,12 +204,12 @@ upper_cooler_h = mac_h + heatsink_h + upper_cooler_gap + upper_fan_thick + upper
 // Mac mini M4 underside power rocker. Button position is approximate by design:
 // the contact pad and lid window are intentionally generous so this can be
 // tuned after checking Bobby's actual Mac against the preview/print.
-mac_floor_z = top_lid_thick + mac_deck_lift + mac_rail_h + 2;
-// Apple’s own underside/rear diagrams place the M4 Mac mini power button
-// beneath the rear Thunderbolt-port cluster: rear-left when viewed from the
-// front. In this CAD coordinate system, front is low Y and rear is high Y, so
-// that maps to the rear-left of the Mac footprint.
-mac_power_button_x = (body_w - mac_w)/2 + 23;
+mac_floor_z = top_lid_thick + mac_rail_h + 2;
+// Apple/MacRumors place the M4 Mac mini power button on the underside,
+// rear-left when viewed from the front, below the three rear Thunderbolt ports.
+// In this CAD model the rear Thunderbolt-port cluster is represented on the
+// rear-right side, so the rocker target sits under that cluster.
+mac_power_button_x = (body_w + mac_w)/2 - 23;
 mac_power_button_y = mac_saddle_y + mac_clearance + mac_d - 23;
 mac_power_window_w = 46;
 mac_power_window_d = 38;
@@ -514,7 +514,6 @@ module pi_receiver_supports() {
     beam_xL = leg_xL - pi_support_post_t/2;
     beam_xR = leg_xR - pi_support_post_t/2;
     beam_w = beam_xR - beam_xL + pi_support_post_t;
-    socket_top_z = floor_h + pi_frame_socket_h;
     beam_z = pi_z - pi_support_beam_h;
 
     // Four straight plug-in legs. The lower section enters the base socket;
@@ -540,19 +539,23 @@ module pi_receiver_supports() {
 }
 
 module pi_receiver(x, y) {
-    // Low-profile guides keep the Pi cassette located without covering board faces.
-    // The lower rails overlap the front/rear bridge beams so this is one printable part.
+    // Integrated Pi holder: the cassette rails/ribs are part of the removable
+    // Pi frame now. No separate cassette, no rear back bar.
     rail_z = pi_z - pi_support_beam_h;
     rail_y0 = pi_support_front_y;
     rail_len = pi_support_rear_y - pi_support_front_y + pi_support_post_t;
+    rib_w = 2.4;
+    rib_h = 4;
+
+    // Side guide rails for the Pi stack.
     translate([x-2, rail_y0, rail_z]) cube([pi_guide_t, rail_len, pi_support_beam_h+pi_lower_guide_h]);
     translate([x+pi_stack_t-1, rail_y0, rail_z]) cube([pi_guide_t, rail_len, pi_support_beam_h+pi_lower_guide_h]);
 
-    // rear stop/tab
-    translate([x-2, y+pi_card_d-5, pi_z-0.3]) cube([pi_stack_t+4, 5, 8.3]);
-
-    // No high anti-tip nubs here: elevated disconnected nubs become slicer floaters.
-    // Retention lives on the removable Pi cassette, which is printed as one connected piece.
+    // Light underside ribs tie into both side rails; deliberately overlap the
+    // rails so the exported Pi frame is one connected mesh, not loose strips.
+    for (yy=[y+18, y+46, y+74]) {
+        translate([x-2, yy-rib_w/2, rail_z]) cube([pi_stack_t+4, rib_w, rib_h]);
+    }
 }
 
 module pi_frame_bridge_installed() {
@@ -717,10 +720,7 @@ module lid_mac_saddle() {
                 translate([(body_w-top_base_fan_size)/2, top_fan_y, top_lid_thick])
                     top_fan_frame();
 
-                // Mac guides sit on four corner stanchions rising from the lid/top-fan frame.
-                mac_saddle_risers();
-
-                // Mac guides touch only corners/edges; centre is open
+                // Mac guides touch only corners/edges and sit flush on the lid/roof.
                 mac_guides();
 
                 // subtle top reveal makes the Mac look intentionally floated
@@ -1223,8 +1223,7 @@ module fitted_parts() {
     translate([0,0,body_h]) color([0.86,0.86,0.86,0.72]) lid_mac_saddle();
     translate([0,0,body_h]) color([1.0,0.72,0.25,0.82]) mac_power_rocker_installed();
     translate([5,0,6]) color([0.9,0.9,0.9,0.78]) front_fan_cassette();
-    translate([body_w/2 - pi_gap/2 - pi_stack_t, pi_y+2, pi_z]) color([0.9,0.9,0.9,0.78]) pi_cassette("L");
-    translate([body_w/2 + pi_gap/2, pi_y+2, pi_z]) color([0.9,0.9,0.9,0.78]) pi_cassette("R");
+    // Pi holders are integrated into pi_frame_bridge_installed(); no separate cassettes.
     translate([body_w/2-upper_bridge_w/2,
                mac_saddle_y+mac_clearance+mac_d/2-upper_bridge_d/2,
                body_h+top_lid_thick+mac_deck_lift+mac_rail_h+2 + mac_h + heatsink_h + upper_cooler_gap])
@@ -1255,10 +1254,7 @@ module assembly_exploded() {
     translate([0,0,28])
         color([0.92,0.92,0.92,0.70]) pi_frame_bridge_installed();
 
-    translate([body_w/2 - pi_gap/2 - pi_stack_t - 18, pi_y+2, pi_z+10])
-        color([0.9,0.9,0.9,0.78]) pi_cassette("L");
-    translate([body_w/2 + pi_gap/2 + 18, pi_y+2, pi_z+10])
-        color([0.9,0.9,0.9,0.78]) pi_cassette("R");
+    // Pi holders are integrated into the removable Pi frame.
 
 
     ghosts();
@@ -1269,9 +1265,7 @@ module all_print_parts() {
     translate([body_w+20,0,0]) lid_mac_saddle();
     translate([body_w*2+40,0,0]) front_fan_cassette();
     translate([0,body_d+25,0]) pi_frame_bridge();
-    translate([95,body_d+25,0]) pi_cassette("L");
-    translate([145,body_d+25,0]) pi_cassette("R");
-    translate([205,body_d+25,0]) upper_mac_fan_bridge();
+    translate([115,body_d+25,0]) upper_mac_fan_bridge();
     translate([0,body_d+95,0]) mac_power_rocker();
 }
 

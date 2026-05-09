@@ -21,8 +21,6 @@ parts=(
   front_fan_cassette
   lid_mac_saddle
   pi_frame_bridge
-  pi_cassette_left
-  pi_cassette_right
   upper_mac_fan_bridge
   mac_power_rocker
 )

@@ -209,10 +209,13 @@ mac_floor_z = top_lid_thick + mac_rail_h + 2;
 // rear-left when viewed from the front, below the three rear Thunderbolt ports.
 // In this CAD coordinate system front is low Y, rear is high Y, and left is
 // low X when viewed from the front.
-mac_power_button_x = (body_w - mac_w)/2 + 23;
+mac_power_button_x_left = (body_w - mac_w)/2 + 23;
+mac_power_button_x_right = (body_w + mac_w)/2 - 23;
+mac_power_button_x = mac_power_button_x_left; // default/reference side
 mac_power_button_y = mac_saddle_y + mac_clearance + mac_d - 14;
-// Keep the rocker window small and rear-biased so it does not visually merge
-// with the large central top-fan/Mac-airflow opening.
+// Keep the rocker windows small and rear-biased so they do not visually merge
+// with the large central top-fan/Mac-airflow opening. Both rear corners get a
+// window/mount so the rocker can be installed on the side that matches the real Mac.
 mac_power_window_w = 24;
 mac_power_window_d = 24;
 rocker_pivot_x = mac_power_button_x;
@@ -745,16 +748,18 @@ module lid_mac_saddle() {
                     cylinder(h=36, d=top_base_fan_screw_d);
             }
 
-            // M4 Mac mini underside power-button access window for the rocker contact.
-            // This is deliberately oversized until the exact button position is verified.
-            translate([mac_power_button_x-mac_power_window_w/2,
-                       mac_power_button_y-mac_power_window_d/2,
-                       -1])
-                rounded_box([mac_power_window_w, mac_power_window_d, 40], 8);
+            // M4 Mac mini underside power-button access windows for the rocker contact.
+            // Mirrored rear windows avoid another left/right orientation trap.
+            for (button_x=[mac_power_button_x_left, mac_power_button_x_right]) {
+                translate([button_x-mac_power_window_w/2,
+                           mac_power_button_y-mac_power_window_d/2,
+                           -1])
+                    rounded_box([mac_power_window_w, mac_power_window_d, 40], 8);
+            }
 
-            // M3/filament hinge-pin holes through the two rocker mount cheeks.
-            for (sx=[-1,1]) {
-                translate([rocker_pivot_x + sx*(rocker_w/2 + 3.2), rocker_pivot_y, rocker_pivot_z])
+            // M3/filament hinge-pin holes through the rocker mount cheeks, mirrored.
+            for (button_x=[mac_power_button_x_left, mac_power_button_x_right], sx=[-1,1]) {
+                translate([button_x + sx*(rocker_w/2 + 3.2), rocker_pivot_y, rocker_pivot_z])
                     rotate([0,90,0]) cylinder(h=8, d=rocker_pin_d, center=true);
             }
         }
@@ -824,14 +829,14 @@ module mac_saddle_risers() {
 }
 
 module mac_power_rocker_mounts() {
-    // Two rear hinge cheeks hold a separate printed rocker with an M3 screw or
-    // short filament pin. The rocker presses the Mac's real underside button;
-    // no electrical modification to the Mac.
+    // Rear hinge cheeks hold a separate printed rocker with an M3 screw or
+    // short filament pin. Mirrored left/right so the rocker can be installed
+    // on whichever rear corner matches the actual Mac orientation.
     cheek_t = 4;
     cheek_d = 15;
     cheek_h = rocker_pivot_z - top_lid_thick + rocker_barrel_d/2 + 2;
-    for (sx=[-1,1]) {
-        translate([rocker_pivot_x + sx*(rocker_w/2 + cheek_t/2 + 1.2),
+    for (button_x=[mac_power_button_x_left, mac_power_button_x_right], sx=[-1,1]) {
+        translate([button_x + sx*(rocker_w/2 + cheek_t/2 + 1.2),
                    rocker_pivot_y-cheek_d/2,
                    top_lid_thick])
             rounded_box([cheek_t, cheek_d, cheek_h], 1.8);
@@ -1003,10 +1008,12 @@ module ghosts() {
 
         // Mac mini + 100x100x18mm heatsink
         mac_top_z = body_h+top_lid_thick+mac_deck_lift+mac_rail_h+2;
-        // Approximate underside power-button target.
+        // Mirrored underside power-button target markers.
         color([1,0.2,0.05,0.45])
-        translate([mac_power_button_x, mac_power_button_y, mac_top_z-0.6])
-            cylinder(h=1.2, d=10, center=true);
+        for (button_x=[mac_power_button_x_left, mac_power_button_x_right]) {
+            translate([button_x, mac_power_button_y, mac_top_z-0.6])
+                cylinder(h=1.2, d=10, center=true);
+        }
         color([0.75,0.75,0.8,0.35])
         translate([(body_w-mac_w)/2, mac_saddle_y+mac_clearance, mac_top_z])
             cube([mac_w, mac_d, mac_h]);
@@ -1223,6 +1230,7 @@ module fitted_parts() {
     color([0.92,0.92,0.92,0.70]) pi_frame_bridge_installed();
     translate([0,0,body_h]) color([0.86,0.86,0.86,0.72]) lid_mac_saddle();
     translate([0,0,body_h]) color([1.0,0.72,0.25,0.82]) mac_power_rocker_installed();
+    translate([mac_power_button_x_right-mac_power_button_x_left,0,body_h]) color([1.0,0.72,0.25,0.38]) mac_power_rocker_installed();
     translate([5,0,6]) color([0.9,0.9,0.9,0.78]) front_fan_cassette();
     // Pi holders are integrated into pi_frame_bridge_installed(); no separate cassettes.
     translate([body_w/2-upper_bridge_w/2,

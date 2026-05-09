@@ -207,12 +207,14 @@ upper_cooler_h = mac_h + heatsink_h + upper_cooler_gap + upper_fan_thick + upper
 mac_floor_z = top_lid_thick + mac_rail_h + 2;
 // Apple/MacRumors place the M4 Mac mini power button on the underside,
 // rear-left when viewed from the front, below the three rear Thunderbolt ports.
-// In this CAD model the rear Thunderbolt-port cluster is represented on the
-// rear-right side, so the rocker target sits under that cluster.
-mac_power_button_x = (body_w + mac_w)/2 - 23;
-mac_power_button_y = mac_saddle_y + mac_clearance + mac_d - 23;
-mac_power_window_w = 46;
-mac_power_window_d = 38;
+// In this CAD coordinate system front is low Y, rear is high Y, and left is
+// low X when viewed from the front.
+mac_power_button_x = (body_w - mac_w)/2 + 23;
+mac_power_button_y = mac_saddle_y + mac_clearance + mac_d - 14;
+// Keep the rocker window small and rear-biased so it does not visually merge
+// with the large central top-fan/Mac-airflow opening.
+mac_power_window_w = 24;
+mac_power_window_d = 24;
 rocker_pivot_x = mac_power_button_x;
 rocker_pivot_y = mac_saddle_y + mac_clearance + mac_d + 5;
 rocker_pivot_z = mac_floor_z - 6.5;
@@ -324,9 +326,8 @@ module base_duct() {
             // Exterior styling strakes/brow removed in the support-light pass:
             // less filament, fewer slicer surprises, same pressure path.
 
-            // Low rear keeper only. The old taller rear bar wasted material and
-            // made the back look more closed than it really needs to be.
-            translate([0, body_d-wall, 0]) cube([body_w, wall, 12]);
+            // Rear keeper removed: the back stays fully open to avoid support,
+            // wasted filament, and confusing horizontal bars.
 
             front_cassette_receivers();
 

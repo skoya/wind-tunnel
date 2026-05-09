@@ -26,6 +26,7 @@
 // - v2.17 vents Pi cassette trays, removes UGREEN straps/towers, adds top Noctua grille.
 // - v2.18 aesthetic pass: calmer side strakes, cleaner front brow, and a floating Mac halo.
 // - v2.19 accommodates Noctua NF-F12 120x25mm fans above the Mac and under the top lid.
+// - v2.20 adds a rear mechanical rocker for the Mac mini M4 underside power button.
 // - Airflow-optimised internals keep UGREEN front/rear/underside grilles open.
 // - Open front-to-back duct keeps airflow unobstructed; Pi guide vanes removed.
 // - Part envelopes are asserted against the Bambu Lab P1S build volume.
@@ -204,6 +205,28 @@ upper_bridge_arch_h = 8; // retained for compatibility; no tall side arches now
 upper_cooler_gap = 1.5; // tiny anti-rattle clearance: fan frame effectively rests on heatsink
 upper_fan_lip_h = 4; // low retaining lip over fan-frame corners
 upper_cooler_h = mac_h + heatsink_h + upper_cooler_gap + upper_fan_thick + upper_fan_lip_h;
+
+// Mac mini M4 underside power rocker. Button position is approximate by design:
+// the contact pad and lid window are intentionally generous so this can be
+// tuned after checking Bobby's actual Mac against the preview/print.
+mac_floor_z = top_lid_thick + mac_deck_lift + mac_rail_h + 2;
+mac_power_button_x = (body_w - mac_w)/2 + 23;
+mac_power_button_y = mac_saddle_y + mac_clearance + mac_d - 25;
+mac_power_window_w = 46;
+mac_power_window_d = 38;
+rocker_pivot_x = mac_power_button_x;
+rocker_pivot_y = mac_saddle_y + mac_clearance + mac_d + 5;
+rocker_pivot_z = mac_floor_z - 6.5;
+rocker_w = 13;
+rocker_t = 5;
+rocker_pin_d = 3.2;
+rocker_barrel_d = 8;
+rocker_contact_w = 18;
+rocker_contact_d = 13;
+rocker_contact_h = 4.2;
+rocker_tab_d = 22;
+rocker_tab_w = 24;
+rocker_tab_h = 5;
 
 // Individual printable envelopes must fit the P1S build volume.
 assert(body_w <= p1s_build_x && body_d <= p1s_build_y && body_h <= p1s_build_z,
@@ -717,12 +740,19 @@ module lid_mac_saddle() {
                 // subtle top reveal makes the Mac look intentionally floated
                 top_lid_style_reveal();
 
-                // rear cable guard for Mac, not a wall blocking exhaust
+                // Rear cable guard/deck for Mac, not a wall blocking exhaust.
+                // The deck also ties the outboard cable holders back into the lid
+                // so they do not export as floating print islands.
                 translate([mac_saddle_x, mac_saddle_y+mac_saddle_d+7, top_lid_thick])
                     rounded_box([mac_saddle_w, 6, mac_rail_h], 3);
+                translate([body_w/2+2, body_d-2, top_lid_thick])
+                    rounded_box([body_w/2-4, 21, 2.2], 3);
 
                 // External holders route Mac power + USB-C toward the back-right outside edge.
                 mac_external_cable_holders();
+
+                // Rear hinge cheeks for the separate mechanical Mac power rocker.
+                mac_power_rocker_mounts();
             }
 
             // upward fan opening: avoids blocking Mac intake
@@ -735,10 +765,18 @@ module lid_mac_saddle() {
                     cylinder(h=36, d=top_base_fan_screw_d);
             }
 
-            // M4 Mac mini bottom power-button access cut-out, generous.
-            // Verify exact button location on your own unit.
-            translate([body_w/2-18, mac_saddle_y+mac_saddle_d-30, -1])
-                rounded_box([36, 28, 36], 9);
+            // M4 Mac mini underside power-button access window for the rocker contact.
+            // This is deliberately oversized until the exact button position is verified.
+            translate([mac_power_button_x-mac_power_window_w/2,
+                       mac_power_button_y-mac_power_window_d/2,
+                       -1])
+                rounded_box([mac_power_window_w, mac_power_window_d, 40], 8);
+
+            // M3/filament hinge-pin holes through the two rocker mount cheeks.
+            for (sx=[-1,1]) {
+                translate([rocker_pivot_x + sx*(rocker_w/2 + 3.2), rocker_pivot_y, rocker_pivot_z])
+                    rotate([0,90,0]) cylinder(h=8, d=rocker_pin_d, center=true);
+            }
         }
 
         // No printed grille above the top fan: the Mac is supported by rails,
@@ -803,6 +841,62 @@ module mac_saddle_risers() {
     translate([x+mac_saddle_w-mac_riser_t, y, z]) rounded_box([mac_riser_t, mac_riser_t, mac_deck_lift], 3);
     translate([x, y+mac_saddle_d-mac_riser_t, z]) rounded_box([mac_riser_t, mac_riser_t, mac_deck_lift], 3);
     translate([x+mac_saddle_w-mac_riser_t, y+mac_saddle_d-mac_riser_t, z]) rounded_box([mac_riser_t, mac_riser_t, mac_deck_lift], 3);
+}
+
+module mac_power_rocker_mounts() {
+    // Two rear hinge cheeks hold a separate printed rocker with an M3 screw or
+    // short filament pin. The rocker presses the Mac's real underside button;
+    // no electrical modification to the Mac.
+    cheek_t = 4;
+    cheek_d = 15;
+    cheek_h = rocker_pivot_z - top_lid_thick + rocker_barrel_d/2 + 2;
+    for (sx=[-1,1]) {
+        translate([rocker_pivot_x + sx*(rocker_w/2 + cheek_t/2 + 1.2),
+                   rocker_pivot_y-cheek_d/2,
+                   top_lid_thick])
+            rounded_box([cheek_t, cheek_d, cheek_h], 1.8);
+    }
+}
+
+module mac_power_rocker_local() {
+    // Origin is the hinge-pin centre. Front arm reaches under the Mac; rear tab
+    // protrudes just past the back of the stand. Press rear tab down -> front
+    // contact nub lifts into the Mac's underside power button.
+    front_y = mac_power_button_y - rocker_pivot_y - rocker_contact_d/2;
+    rear_y = body_d + 13 - rocker_pivot_y;
+    lever_len = rear_y - front_y;
+
+    difference() {
+        union() {
+            translate([-rocker_w/2, front_y, -rocker_t/2])
+                rounded_box([rocker_w, lever_len, rocker_t], 2);
+
+            // Hinge barrel for an M3/filament pin, with extra meat above/below
+            // the bore so the cut does not split the lever into islands.
+            rotate([0,90,0]) cylinder(h=rocker_w+1.6, d=rocker_barrel_d, center=true);
+            translate([-rocker_w/2, -3.2, -rocker_t/2])
+                rounded_box([rocker_w, 6.4, rocker_t], 1.5);
+
+            // Broad contact nub: forgiving of the still-unverified button position.
+            translate([-rocker_contact_w/2, mac_power_button_y-rocker_pivot_y-rocker_contact_d/2, rocker_t/2-0.1])
+                rounded_box([rocker_contact_w, rocker_contact_d, rocker_contact_h], 2);
+
+            // External thumb pad behind the Mac/stand.
+            translate([-rocker_tab_w/2, body_d+1-rocker_pivot_y, -rocker_t/2])
+                rounded_box([rocker_tab_w, rocker_tab_d, rocker_tab_h], 3);
+        }
+        rotate([0,90,0]) cylinder(h=rocker_w+4, d=rocker_pin_d, center=true);
+    }
+}
+
+module mac_power_rocker_installed() {
+    translate([rocker_pivot_x, rocker_pivot_y, rocker_pivot_z])
+        mac_power_rocker_local();
+}
+
+module mac_power_rocker() {
+    // Print as a separate part, lying on its side so the hinge bore is cleaner.
+    rotate([0,-90,0]) mac_power_rocker_local();
 }
 
 // -------------------------
@@ -929,6 +1023,10 @@ module ghosts() {
 
         // Mac mini + 100x100x18mm heatsink
         mac_top_z = body_h+top_lid_thick+mac_deck_lift+mac_rail_h+2;
+        // Approximate underside power-button target.
+        color([1,0.2,0.05,0.45])
+        translate([mac_power_button_x, mac_power_button_y, mac_top_z-0.6])
+            cylinder(h=1.2, d=10, center=true);
         color([0.75,0.75,0.8,0.35])
         translate([(body_w-mac_w)/2, mac_saddle_y+mac_clearance, mac_top_z])
             cube([mac_w, mac_d, mac_h]);
@@ -1144,6 +1242,7 @@ module fitted_parts() {
     base_duct();
     color([0.92,0.92,0.92,0.70]) pi_frame_bridge_installed();
     translate([0,0,body_h]) color([0.86,0.86,0.86,0.72]) lid_mac_saddle();
+    translate([0,0,body_h]) color([1.0,0.72,0.25,0.82]) mac_power_rocker_installed();
     translate([5,0,6]) color([0.9,0.9,0.9,0.78]) front_fan_cassette();
     translate([body_w/2 - pi_gap/2 - pi_stack_t, pi_y+2, pi_z]) color([0.9,0.9,0.9,0.78]) pi_cassette("L");
     translate([body_w/2 + pi_gap/2, pi_y+2, pi_z]) color([0.9,0.9,0.9,0.78]) pi_cassette("R");
@@ -1194,6 +1293,7 @@ module all_print_parts() {
     translate([95,body_d+25,0]) pi_cassette("L");
     translate([145,body_d+25,0]) pi_cassette("R");
     translate([205,body_d+25,0]) upper_mac_fan_bridge();
+    translate([0,body_d+95,0]) mac_power_rocker();
 }
 
 if (EXPORT_PART == "assembly") assembly();
@@ -1211,6 +1311,7 @@ else if (EXPORT_PART == "pi_cassette_right") pi_cassette("R");
 else if (EXPORT_PART == "front_noctua_grille") front_noctua_grille();
 else if (EXPORT_PART == "front_cassette_with_grille") front_cassette_with_grille();
 else if (EXPORT_PART == "upper_mac_fan_bridge") upper_mac_fan_bridge();
+else if (EXPORT_PART == "mac_power_rocker") mac_power_rocker();
 else if (EXPORT_PART == "mac_upper_cooler_preview") mac_upper_cooler_preview();
 else if (EXPORT_PART == "all_print_parts") all_print_parts();
 else assembly();

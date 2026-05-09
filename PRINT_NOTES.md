@@ -27,5 +27,12 @@ Recommended starting point:
 - `pi_cassette_left/right.stl`: flat tray side down.
 - `upper_mac_fan_bridge.stl`: flat on the broad bridge face; inspect fan-guard bridging.
 
+## Mac mini M4 power rocker
+
+- `mac_power_rocker.stl` is a separate moving part.
+- Fit it into the rear hinge cheeks on `lid_mac_saddle.stl` with an M3 screw or short filament pin.
+- The orange/red preview marker is only an approximate Mac underside power-button target; confirm against the real Mac before committing to a long final print.
+- If the button is off, adjust `mac_power_button_x` / `mac_power_button_y` in the SCAD file.
+
 ## Reminder
 Do not print preview/assembly STLs. They are for visual inspection only. UGREEN straps were removed in v2.17; the enclosure now sits in the cradle/side keepers.

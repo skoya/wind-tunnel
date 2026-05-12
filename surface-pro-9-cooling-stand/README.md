@@ -9,6 +9,38 @@ Designed around Bobby's actual stack:
 - Noctua fan: **200 x 200 x 30 mm** underneath.
 - Printed parts locate/support the metal and fan; they do **not** sit between Surface and heatsink.
 
+
+
+## v3 - smoother enclosed version
+
+Current aesthetic candidate: **v3**.
+
+v3 keeps the v2 airflow/fastening logic but makes the stand less like scaffolding:
+
+- rounded charcoal side shrouds and front/rear fascias;
+- warm Noctua-style accent on the front catch and removable dust grille;
+- fan is mostly hidden in normal use;
+- side/front/rear vents keep airflow moving without exposing the whole fan;
+- removable `bottom_dust_grille_v3.stl` lets you access the fan for dust cleaning;
+- Surface still touches only the exposed aluminium heatsink.
+
+Print for v3:
+
+- `left_rail_v3.stl`
+- `right_rail_v3.stl`
+- `fan_tray_front_v3.stl`
+- `fan_tray_rear_v3.stl`
+- `front_lip_v3.stl`
+- `rear_keeper_v3.stl`
+- `bottom_dust_grille_v3.stl`
+
+Inspect:
+
+- `surface9_heatsink_fan_stand_v3.scad`
+- `assembly_v3.stl`
+- `preview_v3.png`
+- `surface-pro-9-cooling-stand-v3.zip`
+
 ## Why v2 exists
 
 v1 proved the layout, but had two real problems:

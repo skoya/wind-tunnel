@@ -118,3 +118,34 @@ Use M3 screws/nuts, small self-tappers, or zip ties through the provided holes. 
 ## Files
 
 The original v1 files are retained for comparison. Use v2 unless you specifically want the simpler unfastened concept.
+
+## v4 - lighter shrouded version
+
+v4 reduces material versus v3 while keeping the same overall concept:
+
+- thinner fan tray and dust grille;
+- side shrouds changed from mostly solid skirts into ribs/stringers;
+- front/rear fascias are hollowed from behind;
+- smaller support posts and lighter screw pads;
+- fan remains mostly hidden in normal use;
+- airflow still uses underside intake, side/front/rear exits, and the removable bottom grille.
+
+Print for v4:
+
+- `left_rail_v4.stl`
+- `right_rail_v4.stl`
+- `fan_tray_front_v4.stl`
+- `fan_tray_rear_v4.stl`
+- `front_lip_v4.stl`
+- `rear_keeper_v4.stl`
+- `bottom_dust_grille_v4.stl`
+
+Inspect:
+
+- `surface9_heatsink_fan_stand_v4.scad`
+- `assembly_v4.stl`
+- `printable_frame_v4.stl`
+- `preview_v4.png`
+- `surface-pro-9-cooling-stand-v4.zip`
+
+v4 is the best current candidate if material use matters. v3 is smoother/more enclosed; v4 is lighter and more vented.
